@@ -195,6 +195,8 @@ def main():
                     print 'You must generate SSL certificates to encrypt the socket.'
                     os.remove('%sserver.key' % helperpath) #openssl will create this empty, so remove junk
                     exit()
+                print e
+                raise e
 
             if(accept):
                 sock.settimeout(None)
