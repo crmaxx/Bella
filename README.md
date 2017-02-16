@@ -91,7 +91,9 @@ The Control Center will constantly update this selection, for up to 128 separate
 **Little note**: Bella works across the internet, if you do some configuration. Configure your firewall to forward Bella's port to your Control Center. Other important ports to forward:
 	1) VNC - 5500. 2) Microphone - 2897. 3) MITM - 8081
 	
-Also, VNC relies on the RealVNC application for macOS, as it is one of the few clients that supports a reverse VNC connection. It is free to download and use.
+Also, VNC relies on the RealVNC application for macOS, as it is one of the few clients that supports a reverse VNC connection. It is free to download and use. 
+
+VNC and Microphone streaming are not yet supported for Linux control centers.
 
 ##Other Information
 This project is being **actively** maintained. Please submit any and all bug reports, questions, feature requests, or related information.
@@ -132,6 +134,8 @@ Please let me know if you have any issues.
 4. `Detect ALL programs that cause a block, and kill them [85% done]`
 
 5. 	The `interactive_shell` command, that provides a fully interactive tty through the `ptty`module. The only downside to this feature at the moment is that is cannot run the pre-programmed functions. [95% done, just working on integration for pre-programmed functions]
+
+6. `VNC and Microphone functionality for a Linux Control Center`
 
 ####Some design points
 1. 	As previously stated, Bella is a pseudo-TTY. By this, the base socket and remote code execution handling of Bella is a fairly abstracted version of a very simple request-response socket. Bella receives a command from the server. If the command matches a pre-programmed function (i.e chrome history dump), then it will perform that function, and send the response back to the client. The client will then handle the response in the same way. After processing the response, it will prompt the client for another command to send.
