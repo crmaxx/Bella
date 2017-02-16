@@ -525,6 +525,7 @@ def main():
                     if nextcmd == "mike_stream":
                         if platform.system() == 'Linux':
                             print '%sThere is not yet Linux support for a microphone stream.\n' % redX
+                            nextcmd = ''
                         else:
                             try:
                                 if not os.path.exists(client_log_path + 'Microphone'):
@@ -556,6 +557,7 @@ def main():
                     if nextcmd == "vnc":
                         if platform.system() == 'Linux':
                             print '%sThere is not yet Linux support for a reverse VNC connection.\n' % redX
+                            nextcmd = ''
                         else:
                             vnc_port = 5500
                             nextcmd = "vnc_start:::%s" % vnc_port
