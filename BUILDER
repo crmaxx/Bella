@@ -7,6 +7,7 @@ bella=$1
 bellaNoExt=${bella%.*}
 BuildsPath=Builds/$(date '+%m-%d@%H_%M')
 mkdir -p $BuildsPath
+development=true
 cp $bella $BuildsPath/bella.py
 #cp Payloads/INSTALLER $BuildsPath/INSTALLER
 
@@ -34,15 +35,19 @@ if [[ `uname` == 'Darwin' ]]; then #macOS
 	sed -i '' -e "s@Containers/.bella@$helperLoc@" $BuildsPath/bella.py 
 	sed -i '' -e "s@4545@$port@" $BuildsPath/bella.py 
 	sed -i '' -e "s@127.0.0.1@$host@" $BuildsPath/bella.py
-	sed -i '' -e "s@\(^[[:space:]]*\)\(print.*$\)@@g" $BuildsPath/bella.py
-	sed -i '' -e "s@development = True@development = False@" $BuildsPath/bella.py
+	if [ "$development" != "true" ]; then 
+		sed -i '' -e "s@\(^[[:space:]]*\)\(print.*$\)@@g" $BuildsPath/bella.py
+		sed -i '' -e "s@development = True@development = False@" $BuildsPath/bella.py
+	fi
 else   #LINUX
-  	sed -i "s@com.apple.Bella@$launchagent@" $BuildsPath/bella.py 
+	sed -i "s@com.apple.Bella@$launchagent@" $BuildsPath/bella.py 
 	sed -i "s@Containers/.bella@$helperLoc@" $BuildsPath/bella.py 
 	sed -i "s@4545@$port@" $BuildsPath/bella.py 
 	sed -i "s@127.0.0.1@$host@" $BuildsPath/bella.py
-	sed -i "s@\(^[[:space:]]*\)\(print.*$\)@@g" $BuildsPath/bella.py
-	sed -i "s@development = True@development = False@" $BuildsPath/bella.py
+	if [ "$development" != "true" ]; then 
+		sed -i "s@\(^[[:space:]]*\)\(print.*$\)@@g" $BuildsPath/bella.py
+		sed -i "s@development = True@development = False@" $BuildsPath/bella.py
+	fi
 fi
 
 

