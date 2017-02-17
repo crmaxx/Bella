@@ -281,6 +281,7 @@ def main():
                     (data, isFinished) = recv_msg(connections[activate]) 
                     if not isFinished:
                         print data, #print it and continue
+                        string_log(data, client_log_path, client_name)
                         continue #just go back to top and keep receiving
                 nextcmd = ''
                 process_running = False
@@ -397,9 +398,13 @@ def main():
                         string_log(line, client_log_path, client_name)
                
                 elif data.startswith('updated_client_name'):
+                    old_computer_name = computername
                     computername = data.split(":::")[1]
+                    print 'Moving [%s%s] to [%s%s]' % (logpath, old_computer_name, logpath, computername)
+                    os.rename("%s%s" %  (logpath, old_computer_name), "%s%s" % (logpath, computername))
                     client_log_path = "%s%s/%s/" % (logpath, computername, client_name)
                     print data.split(":::")[2],
+                    string_log(data, client_log_path, client_name)
 
                 else:
                     if len(data) == 0:
