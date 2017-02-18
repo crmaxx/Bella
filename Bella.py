@@ -1195,9 +1195,9 @@ def getKeychains():
 		return
 	kchains.sort(key=os.path.getmtime)
 	kchain = kchains[-1] #get the last modified one
-	for x in kchains:
-		if x.endswith('-db'):
-			kchain = x
+	#for x in kchains:
+	#	if x.endswith('-db'):
+	#		kchain = x
 	return kchain
 
 def bella_info():
