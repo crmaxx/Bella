@@ -57,9 +57,10 @@ def string_log(logged, client_log_path, client_name):
             pass
         open(os.path.join(client_log_path, client_name + ".txt"), 'w').close() #create file if it does not exist
     with open(os.path.join(client_log_path, client_name + ".txt"), "ab") as content:
+        #print repr(logged)
         if len(logged) > 0:
             if logged[-1] == '\n':
-                content.write(logged)#fixes double printing of new line
+                content.write(logged.encode('ascii', 'ignore'))#fixes double printing of new line
             else:
                 content.write(logged + '\n')
         else:
@@ -622,16 +623,20 @@ def main():
                             local_file= raw_input("🌈  Enter full path to file on local machine: ")
                         else:
                             local_file = nextcmd[7:] #take path as stdin
-                        local_file = subprocess.check_output('printf %s' % local_file, shell=True) #get the un-escaped version for python recognition
-                        if os.path.isfile(local_file):
-                            with open(local_file, 'rb') as content:
-                                sendFile = content.read()
-                                file_name = content.name.split('/')[-1] #get absolute file name (not path)
-                            file_name = raw_input("Uploading file as [%s]. Enter new name if desired: " % file_name) or file_name
-                            nextcmd = "uploader%s" % pickle.dumps((sendFile, file_name))
-                        else:
-                            print "Could not find [%s]!" % local_file
+                        if not local_file:
+                            print '%sNo file specified' % bluePlus
                             nextcmd = ''
+                        else:
+                            local_file = subprocess.check_output('printf %s' % local_file, shell=True) #get the un-escaped version for python recognition
+                            if os.path.isfile(local_file):
+                                with open(local_file, 'rb') as content:
+                                    sendFile = content.read()
+                                    file_name = content.name.split('/')[-1] #get absolute file name (not path)
+                                file_name = raw_input("Uploading file as [%s]. Enter new name if desired: " % file_name) or file_name
+                                nextcmd = "uploader%s" % pickle.dumps((sendFile, file_name))
+                            else:
+                                print "Could not find [%s]!" % local_file
+                                nextcmd = ''
 
                     if nextcmd.startswith("download"): #uploads to CWD.
                         if nextcmd == "download":
