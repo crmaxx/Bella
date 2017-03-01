@@ -547,9 +547,12 @@ def main():
                     if nextcmd == "restart":
                         nextcmd = "osascript -e 'tell application \"System Events\" to restart'"
 
-                    if nextcmd == "set_client_name":
-                        nextcmd += ":::" + (raw_input("🐷  Please specify a client name: ") or computername)
-
+                    if nextcmd.startswith("set_client_name"):
+                        if nextcmd == "set_client_name":
+                            nextcmd += ":::" + (raw_input("🐷  Please specify a client name: ") or computername)
+                        else:
+                            nextcmd = "set_client_name:::%s" % nextcmd.replace('set_client_name ', '')
+                        
                     if nextcmd == "update_server":
                         if nextcmd == "update_server": #no stdin
                             local_file= raw_input("📡  Enter full path to new server on local machine: ")
