@@ -150,9 +150,9 @@ def main():
     ctrlC = False
     active=False
     first_run = True
-    cc_version = '1.10'
+    cc_version = '1.11'
     logpath = 'Logs/'
-    helperpath = ''
+    helperpath = os.getcwd() + '/'
     client_log_path = ''
     client_name = ''
     clients = []

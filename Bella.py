@@ -2322,7 +2322,7 @@ payload_list = []
 temp_file_list = []
 host = '127.0.0.1' #Command and Control IP (listener will run on)
 port = 4545 #What port Bella will operate over
-bella_version = '1.10'
+bella_version = '1.11'
 
 #### End global variables ####
 if __name__ == '__main__':
