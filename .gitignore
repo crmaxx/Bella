@@ -2,3 +2,7 @@ Builds/
 Logs/
 server.crt
 server.key
+mitm.crt
+mitmproxy-dhparam.pem
+mitmproxy-ca.pem
+.txt
