@@ -2,13 +2,7 @@
 # -*- coding: utf-8 -*-
 import socket, os, sys, select, time, bz2, random, platform, datetime, base64, pickle
 import re, urllib, json, subprocess, errno, struct, optparse, ssl
-try:
-    import gnureadline
-    macOS_rl = False
-except ImportError:
-    import rlcompleter
-    import readline
-    macOS_rl = True
+import readline, rlcompleter
 
 violet = '\033[95m'
 blue = '\033[94m' #94 for original light blue
@@ -346,7 +340,7 @@ def main():
                 elif data.startswith('cwdcwd'):
                     sdoof = data.splitlines()
                     workingdir = sdoof[0][6:]
-                    file_list = map(str.lower, sdoof[1:]) + sdoof[1:] + commands
+                    file_list = sdoof[1:] + commands
                     string_log(workingdir + '\n', client_log_path, client_name)
 
                 elif data.startswith('downloader'):
@@ -458,16 +452,15 @@ def main():
                         workingdir = "~" + workingdir[pathlen:] #change working dir to ~[/users/name:restofpath] (in that range)
                    
                     workingdirFormatted = blue + workingdir + endC
-                    if macOS_rl:
-                        if platform.system() == 'Linux':
-                            readline.parse_and_bind("tab: complete")
-                            readline.set_completer(tab_parser)
-                        else:
+                    if platform.system() == 'Linux':
+                        readline.parse_and_bind("tab: complete")
+                        readline.set_completer(tab_parser)
+                    else:
+                        if 'libedit' in readline.__doc__:
                             readline.parse_and_bind("bind ^I rl_complete")
                             readline.set_completer(tab_parser)
-                    else:
-                        gnureadline.parse_and_bind("tab: complete")
-                        gnureadline.set_completer(tab_parser)
+                        else:
+                            readline.parse_and_bind("tab: complete")
 
                     if nextcmd == "":
                         try:
