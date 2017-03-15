@@ -1,4 +1,4 @@
-#Mach race shell https://bugs.chromium.org/p/project-zero/issues/detail?id=676&redir=1
+#Priv escalation exploit https://github.com/bazad/physmem
 
 echo 'Generating payloads!'
 
