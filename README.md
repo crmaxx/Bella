@@ -55,7 +55,7 @@ Upon gaining root access, Bella will migrate over to a hidden directory in /Libr
 
 1. `MULTI-USER SUPPORT!` Bella will keep track of all information from any active users on the computer in a comprehensive database, and will automatically switch to the active computer user. All of the aforementioned data extraction techniques are now available for every user on the machine.
 
-2. 	`Decrypt ALL TLS/SSL traffic and redirect it through the control center!` [a nice, active, MITM attack]
+2. `Decrypt ALL TLS/SSL traffic and redirect it through the control center!` [a nice, active, MITM attack]
 
 3. `Disable/Enable the Keyboard and/or Mouse.`
 
@@ -76,12 +76,12 @@ Upon gaining root access, Bella will migrate over to a hidden directory in /Libr
 ![](Screenshots/Builder.png)
 3. That's it! Bella is all ready to go. Just upload and execute `Bella` on your macOS target.
 4. Now run `Control Center.py` on your macOS or Linux control center. It requires no-dependencies [except for mitmproxy if you want to MITM]. It will do some auto-configuration, and you will see something like this after a few seconds.
-![](Screenshots/Found Clients.png)
+![](Screenshots/Found%20Clients.png)
 The Control Center will constantly update this selection, for up to 128 separate computers.
 5. Press `Ctrl-C` to choose from the selection, and then type in the number of the computer that you want. You will then be presented with a screen like this.
-![](Screenshots/Command entry.png)
+![](Screenshots/Command%20entry.png)
 6. Start running commands! `bella_info` is a great one. Run `manual` to get a full manual of all of the commands. Also, you can hit tab twice to see a list of available commands.
-![](Screenshots/Bella Info.png)
+![](Screenshots/Bella%20Info.png)
 
 **VERY IMPORTANT DISCLAIMER: USE BELLA RESPONSIBLY. BY USING BELLA YOU AGREE TO THE MIT LICENSE CONTAINED IN THIS REPOSITORY. READ THE LICENSE BEFORE USING BELLA.** 
 
